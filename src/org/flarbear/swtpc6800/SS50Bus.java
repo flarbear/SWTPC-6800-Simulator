@@ -1,3 +1,7 @@
+/*
+ * Copyright 2014, Jim Graham, Flarbear Widgets
+ */
+
 package org.flarbear.swtpc6800;
 
 public interface SS50Bus extends Bus8x16 {
