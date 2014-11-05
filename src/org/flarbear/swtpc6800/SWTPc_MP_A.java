@@ -1,3 +1,7 @@
+/*
+ * Copyright 2014, Jim Graham, Flarbear Widgets
+ */
+
 package org.flarbear.swtpc6800;
 
 import java.io.InputStream;
