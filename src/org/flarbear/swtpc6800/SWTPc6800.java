@@ -220,7 +220,12 @@ public class SWTPc6800 extends MicroComputer8x16
         SWTPc6800 myMachine = makeStandardSystem();
         SWTPc_CT_64 myTerminal = new SWTPc_CT_64();
         SWTPc_AC_30 myCassette = new SWTPc_AC_30();
+        SWTPc_GT_6144 myGraphics = new SWTPc_GT_6144();
         SWTPc_MP_S mySerialPort = ((SWTPc_MP_S) myMachine.ioslots[1]);
+        SWTPc_MP_L myParallelPort = new SWTPc_MP_L();
+        myMachine.installcard(myParallelPort, 3);
+        myParallelPort.connectSideA(myGraphics);
+        myTerminal.connectGraphics(myGraphics);
         myCassette.connectToComputer(mySerialPort);
         myCassette.connectToTerminal(myTerminal);
         myTerminal.connectCassetteControl(myCassette);

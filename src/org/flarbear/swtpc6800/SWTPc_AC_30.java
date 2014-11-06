@@ -157,6 +157,7 @@ public class SWTPc_AC_30 extends Panel {
         "resources/TSCMBasicPlusPatch.S19",
         "resources/MITSBasicPatch.S19",
         "resources/TSCSPACEPatch.S19",
+        "resources/SWTSPRAC.S19",
     };
 
     private static void findLabels() {
