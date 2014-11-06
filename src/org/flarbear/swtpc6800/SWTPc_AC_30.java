@@ -5,11 +5,20 @@
 package org.flarbear.swtpc6800;
 
 import java.awt.BorderLayout;
+import java.awt.Button;
 import java.awt.Choice;
+import java.awt.Container;
+import java.awt.FileDialog;
+import java.awt.Frame;
 import java.awt.Label;
 import java.awt.Panel;
 import java.awt.TextArea;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -19,6 +28,10 @@ public class SWTPc_AC_30 extends Panel {
     private RS232Device theTerminal;
     private RS232Device computerPort;
     private RS232Device terminalPort;
+
+    private ByteArrayOutputStream tape = new ByteArrayOutputStream();
+    private boolean recording;
+    private Button saveButton;
 
     public SWTPc_AC_30() {
         setupPorts();
@@ -38,6 +51,10 @@ public class SWTPc_AC_30 extends Panel {
         computerPort = new RS232Device() {
             @Override
             public void sendTo(byte data) {
+                if (recording) {
+                    tape.write(data & 0xff);
+                    saveButton.setEnabled(true);
+                }
                 if (theTerminal != null) {
                     theTerminal.sendTo(data);
                 }
@@ -50,6 +67,7 @@ public class SWTPc_AC_30 extends Panel {
 
             @Override
             public void waitForCTS() {
+                if (recording) return;
                 if (theTerminal != null) {
                     theTerminal.waitForCTS();
                 }
@@ -59,6 +77,10 @@ public class SWTPc_AC_30 extends Panel {
         terminalPort = new RS232Device() {
             @Override
             public void sendTo(byte data) {
+                if (recording) {
+                    tape.write(data & 0xff);
+                    saveButton.setEnabled(true);
+                }
                 if (theComputer != null) {
                     theComputer.sendTo(data);
                 }
@@ -78,6 +100,15 @@ public class SWTPc_AC_30 extends Panel {
         };
     }
 
+    public void saveTape(File f) throws IOException {
+        FileOutputStream os = new FileOutputStream(f);
+        os.write(tape.toByteArray());
+        os.flush();
+        os.close();
+        tape.reset();
+        saveButton.setEnabled(false);
+    }
+
     public void readOn() {
         send(tapefiles[theTapeList.getSelectedIndex()]);
     }
@@ -87,11 +118,11 @@ public class SWTPc_AC_30 extends Panel {
     }
 
     public void punchOn() {
-        // Prompt for filename, pipe computer output to file?
+        recording = true;
     }
 
     public void punchOff() {
-        // Finalize and close file set up in punchOn() method?
+        recording = false;
     }
 
     private Thread senderThread;
@@ -158,6 +189,8 @@ public class SWTPc_AC_30 extends Panel {
         "resources/MITSBasicPatch.S19",
         "resources/TSCSPACEPatch.S19",
         "resources/SWTSPRAC.S19",
+        "resources/SwtBarTst-1.S19",
+        "resources/SwtStarTrekProg.S19",
     };
 
     private static void findLabels() {
@@ -190,6 +223,7 @@ public class SWTPc_AC_30 extends Panel {
         }
     }
 
+    FileDialog saveDialog;
     public void powerOn() {
         findLabels();
         setLayout(new BorderLayout());
@@ -200,6 +234,32 @@ public class SWTPc_AC_30 extends Panel {
             theTapeList.add(label);
         }
         p.add(theTapeList);
+        saveButton = new Button("Save tape");
+        saveButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if (saveDialog == null) {
+                    Container c = getParent();
+                    while (!(c instanceof Frame)) {
+                        c = c.getParent();
+                    }
+                    saveDialog = new FileDialog((Frame) c, "Save Tape to...", FileDialog.SAVE);
+                    saveDialog.setModal(true);
+                }
+                saveDialog.setVisible(true);
+                File f[] = saveDialog.getFiles();
+                if (f.length > 0) {
+                    try {
+                        saveTape(f[0]);
+                    } catch (IOException ioe) {
+                        ioe.printStackTrace(System.out);
+                    }
+                }
+                
+            }
+        });
+        saveButton.setEnabled(false);
+        p.add(saveButton);
         add(p, "North");
         theInfoPane = new TextArea(20, 40);
         theInfoPane.setEditable(false);
