@@ -192,7 +192,7 @@ public class SWTPc6800 extends MicroComputer8x16
             SS30Card c = ioslots[ioslot];
             if (c != null) {
                 data &= c.load((addr & 1) != 0,
-                        (addr & 2) != 0);
+                               (addr & 2) != 0);
             }
         }
         return data;

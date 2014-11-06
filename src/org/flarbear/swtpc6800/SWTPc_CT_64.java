@@ -108,18 +108,18 @@ public class SWTPc_CT_64 extends Canvas implements RS232Device {
             }
         }
         if (theFrame != null) {
-            theFrame.hide();
+            theFrame.setVisible(false);
             theFrame.invalidate();
             theFrame.pack();
             if (theAC30Frame != null) {
-                theAC30Frame.hide();
+                theAC30Frame.setVisible(false);
                 theAC30Frame.pack();
                 theAC30Frame.invalidate();
                 adjustCassetteBounds();
             }
-            theFrame.show();
+            theFrame.setVisible(true);
             if (theAC30Frame != null) {
-                theAC30Frame.show();
+                theAC30Frame.setVisible(true);
             }
         }
     }
@@ -189,7 +189,7 @@ public class SWTPc_CT_64 extends Canvas implements RS232Device {
         p.add(cb);
         theFrame.add(p, "South");
         theFrame.pack();
-        theFrame.show();
+        theFrame.setVisible(true);
         if (theCassette != null) {
             showCassette();
         }
@@ -223,7 +223,7 @@ public class SWTPc_CT_64 extends Canvas implements RS232Device {
         theAC30Frame.add(theCassette);
         theAC30Frame.pack();
         adjustCassetteBounds();
-        theAC30Frame.show();
+        theAC30Frame.setVisible(true);
     }
 
     private void adjustCassetteBounds() {

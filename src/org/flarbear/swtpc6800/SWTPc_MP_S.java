@@ -23,7 +23,6 @@ public class SWTPc_MP_S extends SS30Card implements RS232Device {
     private RS232Device terminal;
 
     private byte receiverdata;
-    private byte control;
     private boolean receiving;
     private boolean dataready;
     private boolean dataoverrun;
@@ -96,7 +95,6 @@ public class SWTPc_MP_S extends SS30Card implements RS232Device {
                 receiving = (data == 0x15);
                 notifyAll();
             }
-            control = data;
         }
     }
 
