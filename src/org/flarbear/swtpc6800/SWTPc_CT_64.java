@@ -43,6 +43,7 @@ public class SWTPc_CT_64 extends Canvas implements RS232Device {
     private SWTPc6800 theComputer;
     private Motorola6800 theProcessor;
     private SWTPc_AC_30 theCassette;
+    private SWTPc_GT_6144 theGraphics;
     private Frame theFrame;
     private Frame theAC30Frame;
 
@@ -116,6 +117,9 @@ public class SWTPc_CT_64 extends Canvas implements RS232Device {
                 theAC30Frame.pack();
                 theAC30Frame.invalidate();
                 adjustCassetteBounds();
+            }
+            if (theGraphics != null) {
+                showGraphics();
             }
             theFrame.setVisible(true);
             if (theAC30Frame != null) {
@@ -193,6 +197,9 @@ public class SWTPc_CT_64 extends Canvas implements RS232Device {
         if (theCassette != null) {
             showCassette();
         }
+        if (theGraphics != null) {
+            showGraphics();
+        }
         requestFocus();
         addKeyListener(new KeyAdapter() {
             @Override
@@ -242,6 +249,14 @@ public class SWTPc_CT_64 extends Canvas implements RS232Device {
         if (theFrame != null) {
             showCassette();
         }
+    }
+
+    private void showGraphics() {
+        theGraphics.showAt(theFrame.getX() + theFrame.getWidth(), theFrame.getY(), BigChars);
+    }
+
+    public void connectGraphics(SWTPc_GT_6144 theGraphics) {
+        this.theGraphics = theGraphics;
     }
 
     public void addResetFor(SWTPc6800 machine) {
@@ -322,14 +337,14 @@ public class SWTPc_CT_64 extends Canvas implements RS232Device {
         int cy = cursorpos / SCRCOLS;
         int cx = cursorpos % SCRCOLS;
         return new Rectangle(BORDERW + cx * charw,
-                BORDERH + cy * charh,
-                charw, charh);
+                             BORDERH + cy * charh,
+                             charw, charh);
     }
 
     @Override
     public Dimension getPreferredSize() {
         return new Dimension(BORDERW + SCRCOLS * charw + BORDERW,
-                BORDERH + SCRROWS * charh + BORDERH);
+                             BORDERH + SCRROWS * charh + BORDERH);
     }
 
     @Override
