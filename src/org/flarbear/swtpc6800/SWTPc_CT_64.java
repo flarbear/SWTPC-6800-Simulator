@@ -125,6 +125,7 @@ public class SWTPc_CT_64 extends Canvas implements RS232Device {
             if (theAC30Frame != null) {
                 theAC30Frame.setVisible(true);
             }
+            requestFocus();
         }
     }
 
