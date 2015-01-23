@@ -9,6 +9,7 @@ import java.awt.Button;
 import java.awt.Choice;
 import java.awt.Container;
 import java.awt.FileDialog;
+import java.awt.Font;
 import java.awt.Frame;
 import java.awt.Label;
 import java.awt.Panel;
@@ -29,7 +30,7 @@ public class SWTPc_AC_30 extends Panel {
     private RS232Device computerPort;
     private RS232Device terminalPort;
 
-    private ByteArrayOutputStream tape = new ByteArrayOutputStream();
+    private final ByteArrayOutputStream tape = new ByteArrayOutputStream();
     private boolean recording;
     private Button saveButton;
 
@@ -226,6 +227,8 @@ public class SWTPc_AC_30 extends Panel {
     FileDialog saveDialog;
     public void powerOn() {
         findLabels();
+        Font f = new Font(Font.DIALOG, Font.PLAIN, Math.round(10 * SWTPc_CT_64.DpiScale));
+        setFont(f);
         setLayout(new BorderLayout());
         Panel p = new Panel();
         p.add(new Label("Load Tape:"));

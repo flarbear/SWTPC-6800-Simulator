@@ -9,6 +9,7 @@ import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Frame;
 import java.awt.Graphics;
+import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
@@ -54,8 +55,11 @@ public class SWTPc_GT_6144 extends Canvas implements PIADevice {
             cellw *= 2;
             cellh *= 3;
         }
-        setPreferredSize(new Dimension(BORDERW + COLS * cellw + BORDERW,
-                                       BORDERH + ROWS * cellh + BORDERH));
+        int w = BORDERW + COLS * cellw + BORDERW;
+        int h = BORDERH + ROWS * cellh + BORDERH;
+        w = (int) (Math.ceil(w * SWTPc_CT_64.DpiScale));
+        h = (int) (Math.ceil(h * SWTPc_CT_64.DpiScale));
+        setPreferredSize(new Dimension(w, h));
         if (theFrame == null) {
             theFrame = new Frame("SWTPc GT-6144 Emulator");
             theFrame.addWindowListener(new WindowAdapter() {
@@ -79,6 +83,7 @@ public class SWTPc_GT_6144 extends Canvas implements PIADevice {
 
     @Override
     public void update(Graphics g) {
+        ((Graphics2D) g).scale(SWTPc_CT_64.DpiScale, SWTPc_CT_64.DpiScale);
         if (blanked) {
             g.setColor(Color.BLACK);
             g.fillRect(0, 0, getWidth(), getHeight());
@@ -110,6 +115,18 @@ public class SWTPc_GT_6144 extends Canvas implements PIADevice {
         }
     }
 
+    void repaintCell(int row, int col) {
+        int x0 = BORDERW + col * cellw;
+        int y0 = BORDERH + row * cellh;
+        int x1 = x0 + cellw;
+        int y1 = y0 + cellh;
+        int x = (int) Math.floor(x0 * SWTPc_CT_64.DpiScale);
+        int y = (int) Math.floor(y0 * SWTPc_CT_64.DpiScale);
+        int w = ((int) Math.ceil(x1 * SWTPc_CT_64.DpiScale)) - x;
+        int h = ((int) Math.ceil(y1 * SWTPc_CT_64.DpiScale)) - y;
+        repaint(x, y, w, h);
+    }
+
     @Override
     public void transition(byte data, boolean c1, boolean c2) {
         if (c2) return;  // Only react to LOW transitions
@@ -122,9 +139,7 @@ public class SWTPc_GT_6144 extends Canvas implements PIADevice {
                 if (pixels[col][row] == write) return;
                 pixels[col][row] = write;
                 if (!blanked) {
-                    repaint(BORDERW + col * cellw,
-                            BORDERH + row * cellh,
-                            cellw, cellh);
+                    repaintCell(row, col);
                 }
             } else {
                 switch (row & 7) {
