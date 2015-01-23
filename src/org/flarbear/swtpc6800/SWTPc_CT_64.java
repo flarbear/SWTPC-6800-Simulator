@@ -10,11 +10,14 @@ import java.awt.Canvas;
 import java.awt.Checkbox;
 import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.Font;
 import java.awt.Frame;
 import java.awt.Graphics;
+import java.awt.Graphics2D;
 import java.awt.Image;
 import java.awt.Panel;
 import java.awt.Rectangle;
+import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.ItemEvent;
@@ -30,6 +33,12 @@ public class SWTPc_CT_64 extends Canvas implements RS232Device {
     public static final int SCRROWS = 16;
     public static final int CHARCOLS = 8;
     public static final int CHARROWS = 13;
+
+    public static final float DpiScale;
+    static {
+        int res = Toolkit.getDefaultToolkit().getScreenResolution();
+        DpiScale = (res > 96) ? res / 96.0f : 1.0f;
+    }
 
     private int pixw;
     private int pixh;
@@ -140,6 +149,8 @@ public class SWTPc_CT_64 extends Canvas implements RS232Device {
         theFrame.setLayout(new BorderLayout());
         theFrame.add(this, "Center");
         Panel p = new Panel();
+        Font f = new Font(Font.DIALOG, Font.PLAIN, Math.round(10 * DpiScale));
+        p.setFont(f);
         p.setFocusable(false);
         if (theComputer != null) {
             Button b = new Button("Reset MP68");
@@ -334,22 +345,36 @@ public class SWTPc_CT_64 extends Canvas implements RS232Device {
     public void waitForCTS() {
     }
 
+    public Rectangle getCharRect(int charx, int chary) {
+        int x0 = BORDERW + charx * charw;
+        int y0 = BORDERH + chary * charh;
+        int x1 = x0 + charw;
+        int y1 = y0 + charh;
+        int x = (int) Math.floor(x0 * DpiScale);
+        int y = (int) Math.floor(y0 * DpiScale);
+        int w = ((int) Math.ceil(x1 * DpiScale)) - x;
+        int h = ((int) Math.ceil(y1 * DpiScale)) - y;
+        return new Rectangle(x, y, w, h);
+    }
+
     public Rectangle getCursorRect() {
         int cy = cursorpos / SCRCOLS;
         int cx = cursorpos % SCRCOLS;
-        return new Rectangle(BORDERW + cx * charw,
-                             BORDERH + cy * charh,
-                             charw, charh);
+        return getCharRect(cx, cy);
     }
 
     @Override
     public Dimension getPreferredSize() {
-        return new Dimension(BORDERW + SCRCOLS * charw + BORDERW,
-                             BORDERH + SCRROWS * charh + BORDERH);
+        int w = BORDERW + SCRCOLS * charw + BORDERW;
+        int h = BORDERH + SCRROWS * charh + BORDERH;
+        w = (int) Math.ceil(w * DpiScale);
+        h = (int) Math.ceil(h * DpiScale);
+        return new Dimension(w, h);
     }
 
     @Override
     public void paint(Graphics g) {
+        ((Graphics2D) g).scale(DpiScale, DpiScale);
         int pos = 0;
         int y = BORDERH;
         for (int r = 0; r < SCRROWS; r++) {
@@ -421,7 +446,7 @@ public class SWTPc_CT_64 extends Canvas implements RS232Device {
             screen[pos++] = ' ';
         } while ((pos % SCRCOLS) != 0);
         Rectangle r = getCursorRect();
-        r.width = SCRCOLS * charw;
+        r.add(getCharRect(SCRCOLS - 1, cursorpos / SCRCOLS));
         repaint(r);
     }
 
