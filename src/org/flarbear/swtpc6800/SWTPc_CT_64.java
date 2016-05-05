@@ -1,5 +1,5 @@
 /*
- * Copyright 2014, Jim Graham, Flarbear Widgets
+ * Copyright 2014, 2015, Jim Graham, Flarbear Widgets
  */
 
 package org.flarbear.swtpc6800;
