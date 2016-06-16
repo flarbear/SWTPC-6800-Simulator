@@ -1,5 +1,5 @@
 /*
- * Copyright 2014, 2015, Jim Graham, Flarbear Widgets
+ * Copyright 2014, 2016, Jim Graham, Flarbear Widgets
  */
 
 package org.flarbear.swtpc6800;
@@ -111,7 +111,7 @@ public class SWTPc_AC_30 extends Panel {
     }
 
     public void readOn() {
-        send(tapefiles[theTapeList.getSelectedIndex()]);
+        send(TAPE_FILES[theTapeList.getSelectedIndex()]);
     }
 
     public void readOff() {
@@ -184,7 +184,7 @@ public class SWTPc_AC_30 extends Panel {
 
     private static String labels[];
 
-    private static final String tapefiles[] = {
+    private static final String TAPE_FILES[] = {
         "resources/TicTacToePatch.S19",
         "resources/TSCMBasicPlusPatch.S19",
         "resources/MITSBasicPatch.S19",
@@ -196,12 +196,12 @@ public class SWTPc_AC_30 extends Panel {
 
     private static void findLabels() {
         if (labels == null) {
-            labels = new String[tapefiles.length];
-            for (int i = 0; i < tapefiles.length; i++) {
+            labels = new String[TAPE_FILES.length];
+            for (int i = 0; i < TAPE_FILES.length; i++) {
                 String label;
                 InputStream is = null;
                 try {
-                    is = SWTPc_AC_30.class.getResourceAsStream(tapefiles[i]);
+                    is = SWTPc_AC_30.class.getResourceAsStream(TAPE_FILES[i]);
                     BufferedReader br = new BufferedReader(new InputStreamReader(is));
                     label = br.readLine();
                     if (label != null && label.startsWith("LABEL=")) {
@@ -227,7 +227,7 @@ public class SWTPc_AC_30 extends Panel {
     FileDialog saveDialog;
     public void powerOn() {
         findLabels();
-        Font f = new Font(Font.DIALOG, Font.PLAIN, Math.round(10 * SWTPc_CT_64.DpiScale));
+        Font f = new Font(Font.DIALOG, Font.PLAIN, Math.round(10 * SWTPc_CT_64.DPI_SCALE));
         setFont(f);
         setLayout(new BorderLayout());
         Panel p = new Panel();

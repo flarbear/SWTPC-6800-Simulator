@@ -1,5 +1,5 @@
 /*
- * Copyright 2014, Jim Graham, Flarbear Widgets
+ * Copyright 2014, 2016, Jim Graham, Flarbear Widgets
  */
 
 package org.flarbear.swtpc6800;
@@ -111,8 +111,13 @@ public class SWTPc_MP_L extends SS30Card {
         }
     }
 
-    private PIASide Aside = new PIASide();
-    private PIASide Bside = new PIASide();
+    private final PIASide Aside;
+    private final PIASide Bside;
+
+    public SWTPc_MP_L() {
+        Aside = new PIASide();
+        Bside = new PIASide();
+    }
 
     @Override
     public void tripRESET() {
@@ -125,10 +130,16 @@ public class SWTPc_MP_L extends SS30Card {
     }
 
     public void connectSideA(PIADevice peripheral) {
+        if (Aside.peripheral != null) {
+            throw new IllegalStateException("Peripheral already installed on side A!");
+        }
         Aside.peripheral = peripheral;
     }
 
     public void connectSideB(PIADevice peripheral) {
+        if (Bside.peripheral != null) {
+            throw new IllegalStateException("Peripheral already installed on side B!");
+        }
         Bside.peripheral = peripheral;
     }
 

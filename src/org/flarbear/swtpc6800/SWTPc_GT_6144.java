@@ -1,5 +1,5 @@
 /*
- * Copyright 2014, 2015, Jim Graham, Flarbear Widgets
+ * Copyright 2014, 2016, Jim Graham, Flarbear Widgets
  */
 
 package org.flarbear.swtpc6800;
@@ -57,8 +57,8 @@ public class SWTPc_GT_6144 extends Canvas implements PIADevice {
         }
         int w = BORDERW + COLS * cellw + BORDERW;
         int h = BORDERH + ROWS * cellh + BORDERH;
-        w = (int) (Math.ceil(w * SWTPc_CT_64.DpiScale));
-        h = (int) (Math.ceil(h * SWTPc_CT_64.DpiScale));
+        w = (int) (Math.ceil(w * SWTPc_CT_64.DPI_SCALE));
+        h = (int) (Math.ceil(h * SWTPc_CT_64.DPI_SCALE));
         setPreferredSize(new Dimension(w, h));
         if (theFrame == null) {
             theFrame = new Frame("SWTPc GT-6144 Emulator");
@@ -83,7 +83,7 @@ public class SWTPc_GT_6144 extends Canvas implements PIADevice {
 
     @Override
     public void update(Graphics g) {
-        ((Graphics2D) g).scale(SWTPc_CT_64.DpiScale, SWTPc_CT_64.DpiScale);
+        ((Graphics2D) g).scale(SWTPc_CT_64.DPI_SCALE, SWTPc_CT_64.DPI_SCALE);
         if (blanked) {
             g.setColor(Color.BLACK);
             g.fillRect(0, 0, getWidth(), getHeight());
@@ -120,10 +120,10 @@ public class SWTPc_GT_6144 extends Canvas implements PIADevice {
         int y0 = BORDERH + row * cellh;
         int x1 = x0 + cellw;
         int y1 = y0 + cellh;
-        int x = (int) Math.floor(x0 * SWTPc_CT_64.DpiScale);
-        int y = (int) Math.floor(y0 * SWTPc_CT_64.DpiScale);
-        int w = ((int) Math.ceil(x1 * SWTPc_CT_64.DpiScale)) - x;
-        int h = ((int) Math.ceil(y1 * SWTPc_CT_64.DpiScale)) - y;
+        int x = (int) Math.floor(x0 * SWTPc_CT_64.DPI_SCALE);
+        int y = (int) Math.floor(y0 * SWTPc_CT_64.DPI_SCALE);
+        int w = ((int) Math.ceil(x1 * SWTPc_CT_64.DPI_SCALE)) - x;
+        int h = ((int) Math.ceil(y1 * SWTPc_CT_64.DPI_SCALE)) - y;
         repaint(x, y, w, h);
     }
 

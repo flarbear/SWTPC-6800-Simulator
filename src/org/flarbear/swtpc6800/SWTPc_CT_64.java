@@ -1,5 +1,5 @@
 /*
- * Copyright 2014, 2015, Jim Graham, Flarbear Widgets
+ * Copyright 2014, 2016, Jim Graham, Flarbear Widgets
  */
 
 package org.flarbear.swtpc6800;
@@ -28,16 +28,16 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
 
-public class SWTPc_CT_64 extends Canvas implements RS232Device {
+public final class SWTPc_CT_64 extends Canvas implements RS232Device {
     public static final int SCRCOLS = 64;
     public static final int SCRROWS = 16;
     public static final int CHARCOLS = 8;
     public static final int CHARROWS = 13;
 
-    public static final float DpiScale;
+    public static final float DPI_SCALE;
     static {
         int res = Toolkit.getDefaultToolkit().getScreenResolution();
-        DpiScale = (res > 96) ? res / 96.0f : 1.0f;
+        DPI_SCALE = (res > 96) ? res / 96.0f : 1.0f;
     }
 
     private int pixw;
@@ -71,10 +71,14 @@ public class SWTPc_CT_64 extends Canvas implements RS232Device {
         cursorpos = 0;
         clearscreen();
         UClock = true;
-        setBackground(Color.black);
-        setForeground(Color.green);
+        initColors();
         charimgs = new Image[256];
         calculateCharImages();
+    }
+
+    private void initColors() {
+        setBackground(Color.black);
+        setForeground(Color.green);
     }
 
     private final Image charimgs[];
@@ -104,7 +108,7 @@ public class SWTPc_CT_64 extends Canvas implements RS232Device {
             }
             int y = 0;
             for (int j = 0; j < CHARROWS; j++) {
-                int b = charset_6575[csi];
+                int b = CHARSET_6575[csi];
                 int x = 0;
                 while (b != 0) {
                     if ((b & 0x80) != 0) {
@@ -149,7 +153,7 @@ public class SWTPc_CT_64 extends Canvas implements RS232Device {
         theFrame.setLayout(new BorderLayout());
         theFrame.add(this, "Center");
         Panel p = new Panel();
-        Font f = new Font(Font.DIALOG, Font.PLAIN, Math.round(10 * DpiScale));
+        Font f = new Font(Font.DIALOG, Font.PLAIN, Math.round(10 * DPI_SCALE));
         p.setFont(f);
         p.setFocusable(false);
         if (theComputer != null) {
@@ -350,10 +354,10 @@ public class SWTPc_CT_64 extends Canvas implements RS232Device {
         int y0 = BORDERH + chary * charh;
         int x1 = x0 + charw;
         int y1 = y0 + charh;
-        int x = (int) Math.floor(x0 * DpiScale);
-        int y = (int) Math.floor(y0 * DpiScale);
-        int w = ((int) Math.ceil(x1 * DpiScale)) - x;
-        int h = ((int) Math.ceil(y1 * DpiScale)) - y;
+        int x = (int) Math.floor(x0 * DPI_SCALE);
+        int y = (int) Math.floor(y0 * DPI_SCALE);
+        int w = ((int) Math.ceil(x1 * DPI_SCALE)) - x;
+        int h = ((int) Math.ceil(y1 * DPI_SCALE)) - y;
         return new Rectangle(x, y, w, h);
     }
 
@@ -367,14 +371,14 @@ public class SWTPc_CT_64 extends Canvas implements RS232Device {
     public Dimension getPreferredSize() {
         int w = BORDERW + SCRCOLS * charw + BORDERW;
         int h = BORDERH + SCRROWS * charh + BORDERH;
-        w = (int) Math.ceil(w * DpiScale);
-        h = (int) Math.ceil(h * DpiScale);
+        w = (int) Math.ceil(w * DPI_SCALE);
+        h = (int) Math.ceil(h * DPI_SCALE);
         return new Dimension(w, h);
     }
 
     @Override
     public void paint(Graphics g) {
-        ((Graphics2D) g).scale(DpiScale, DpiScale);
+        ((Graphics2D) g).scale(DPI_SCALE, DPI_SCALE);
         int pos = 0;
         int y = BORDERH;
         for (int r = 0; r < SCRROWS; r++) {
@@ -457,7 +461,7 @@ public class SWTPc_CT_64 extends Canvas implements RS232Device {
         repaint();
     }
 
-    private static final char charset_6575[] = {
+    private static final char CHARSET_6575[] = {
         /*00*/  0x00, 0x88, 0xC8, 0xA8, 0x98, 0xAA, 0x22, 0x22, 0x22, 0x1C, 0x00, 0x00, 0x00,  // NU
         /*01*/  0x00, 0x70, 0x80, 0x60, 0x10, 0xE2, 0x22, 0x3E, 0x22, 0x22, 0x00, 0x00, 0x00,  // SH
         /*02*/  0x00, 0x70, 0x80, 0x60, 0x10, 0xE2, 0x14, 0x08, 0x14, 0x22, 0x00, 0x00, 0x00,  // SX

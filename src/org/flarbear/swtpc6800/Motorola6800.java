@@ -1,5 +1,5 @@
 /*
- * Copyright 2014, Jim Graham, Flarbear Widgets
+ * Copyright 2014, 2016, Jim Graham, Flarbear Widgets
  */
 
 package org.flarbear.swtpc6800;
@@ -8,8 +8,8 @@ package org.flarbear.swtpc6800;
 public class Motorola6800
     implements Runnable
 {
-    private static final int debug = 0;
-    public static final boolean stats = false;
+    private static final int DEBUG = 0;
+    public static final boolean STATS = false;
 
     Bus8x16 theBus;
 
@@ -45,13 +45,13 @@ public class Motorola6800
     public static final int COND_NBITS = 6;
     public static final int COND_MASK = ((1 << COND_NBITS) - 1);
 
-    public static final char IRQJumpAddr = 0xFFF8;
-    public static final char SWIJumpAddr = 0xFFFA;
-    public static final char NMIJumpAddr = 0xFFFC;
-    public static final char RESETJumpAddr = 0xFFFE;
+    public static final char IRQ_JUMP_ADDR = 0xFFF8;
+    public static final char SWI_JUMP_ADDR = 0xFFFA;
+    public static final char NMI_JUMP_ADDR = 0xFFFC;
+    public static final char RESET_JUMP_ADDR = 0xFFFE;
 
     public Motorola6800() {
-        if (stats) {
+        if (STATS) {
             this.opTotals = new int[256];
             this.opCounts = new int[256];
         }
@@ -95,7 +95,7 @@ public class Motorola6800
         executor.setPriority(Thread.MIN_PRIORITY);
         IRQraised = NMIraised = RESETraised = false;
         ccode |= COND_I;
-        PCreg = load16(RESETJumpAddr);
+        PCreg = load16(RESET_JUMP_ADDR);
         notifyAll();
     }
 
@@ -118,7 +118,7 @@ public class Motorola6800
         RESETraised = true;
         waitForHalt();
         if (RESETraised) {
-            PCreg = load16(RESETJumpAddr);
+            PCreg = load16(RESET_JUMP_ADDR);
         }
     }
 
@@ -161,9 +161,9 @@ public class Motorola6800
         }
         if (NMIraised) {
             NMIraised = false;
-            handleInterrupt(NMIJumpAddr);
+            handleInterrupt(NMI_JUMP_ADDR);
         } else if (IRQraised && (ccode & COND_I) == 0) {
-            handleInterrupt(IRQJumpAddr);
+            handleInterrupt(IRQ_JUMP_ADDR);
         }
         return true;
     }
@@ -413,7 +413,7 @@ public class Motorola6800
             default:
                 throw new InternalError("Unrecognized Addressing Mode");
         }
-        if (debug > 2) {
+        if (DEBUG > 2) {
             System.out.println("   mode Address: " + hex(addr, 4));
         }
         return addr;
@@ -534,7 +534,7 @@ public class Motorola6800
     }
 
     /* NVC condition code truth table for addition (with or without carry) */
-    private static final byte ccaddtable[] = {
+    private static final byte CC_ADD_TABLE[] = {
         /* a7=0  b7=0  c7=0 */   (     0 |      0 |      0),
         /* a7=0  b7=0  c7=1 */   (COND_N | COND_V |      0),
         /* a7=0  b7=1  c7=0 */   (     0 |      0 | COND_C),
@@ -550,9 +550,9 @@ public class Motorola6800
         int b = load8(flags >> SRC2_SHIFT, addr);
         int carry = (((flags >> CCVAL_SHIFT) & ccode) >> SHIFT_C);
         int c = a + b + carry;
-        byte cctmp = ccaddtable[((a >> 5) & 0x04) |
-                                ((b >> 6) & 0x02) |
-                                ((c >> 7) & 0x01)];
+        byte cctmp = CC_ADD_TABLE[((a >> 5) & 0x04) |
+                                  ((b >> 6) & 0x02) |
+                                  ((c >> 7) & 0x01)];
         if ((c & 0xFF) == 0) {
             cctmp |= COND_Z;
         }
@@ -564,7 +564,7 @@ public class Motorola6800
     }
 
     /* NVC condition code truth table for subtraction (with or without borrow) */
-    private static final byte ccsubtable[] = {
+    private static final byte CC_SUB_TABLE[] = {
         /* a7=0  b7=0  c7=0 */   (     0 |      0 |      0),
         /* a7=0  b7=0  c7=1 */   (COND_N |      0 | COND_C),
         /* a7=0  b7=1  c7=0 */   (     0 |      0 | COND_C),
@@ -580,9 +580,9 @@ public class Motorola6800
         int b = load8(flags >> SRC2_SHIFT, addr);
         int carry = (((flags >> CCVAL_SHIFT) & ccode) >> SHIFT_C);
         int c = a - b - carry;
-        byte cctmp = ccsubtable[((a >> 5) & 0x04) |
-                                ((b >> 6) & 0x02) |
-                                ((c >> 7) & 0x01)];
+        byte cctmp = CC_SUB_TABLE[((a >> 5) & 0x04) |
+                                  ((b >> 6) & 0x02) |
+                                  ((c >> 7) & 0x01)];
         if ((c & 0xFF) == 0) {
             cctmp |= COND_Z;
         }
@@ -848,7 +848,7 @@ public class Motorola6800
     }
 
     private void opSoftwareInterrupt(int flags) {
-        handleInterrupt(SWIJumpAddr);
+        handleInterrupt(SWI_JUMP_ADDR);
     }
 
     private void opReturnFromInterrupt(int flags) {
@@ -966,7 +966,7 @@ public class Motorola6800
     }
 
     private void executeInstruction() {
-        if (debug > 0) {
+        if (DEBUG > 0) {
             System.out.print("PC:"+hex(PCreg,4)+
                              "  SP:"+hex(SPreg,4)+
                              "  IX:"+hex(IXreg,4)+
@@ -975,13 +975,13 @@ public class Motorola6800
                              "  CC:"+ccstr());
         }
         byte opcode = load8(PCreg++);
-        if (stats) {
+        if (STATS) {
             opCounts[opcode & 0xFF]++;
         }
-        int flags = instructionFlags[opcode & 0xff];
-        if (debug > 0) {
+        int flags = INSTRUCTION_FLAGS[opcode & 0xff];
+        if (DEBUG > 0) {
             System.out.println("   op:"+hex(opcode, 2)+",  "+opToMnemonic(opcode));
-            if (debug > 1) {
+            if (DEBUG > 1) {
                     System.out.println("   flags [op:"+fld(flags, OP_SHIFT, OP_NBITS)+
                                        ", s1:"+fld(flags, SRC1_SHIFT, SRC1_NBITS)+
                                        ", s2:"+fld(flags, SRC2_SHIFT, SRC2_NBITS)+
@@ -1090,7 +1090,7 @@ public class Motorola6800
         }
     }
 
-    private static final int instructionFlags[] = {
+    private static final int INSTRUCTION_FLAGS[] = {
         /* $00 */ OP_ILLEGAL,
         /* $01 */ (OP_NOP),
         /* $02 */ OP_ILLEGAL,
