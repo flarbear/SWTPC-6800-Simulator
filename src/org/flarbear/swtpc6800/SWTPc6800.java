@@ -1,5 +1,5 @@
 /*
- * Copyright 2014, Jim Graham, Flarbear Widgets
+ * Copyright 2014, 2016, Jim Graham, Flarbear Widgets
  */
 
 package org.flarbear.swtpc6800;
@@ -114,7 +114,7 @@ public class SWTPc6800 extends MicroComputer8x16
                 // These signals are specific to the SS50 bus
                 break;
             default:
-                throw new InternalError("Unrecognized command for SS50 card: " + signal);
+                throw new InternalError("Unrecognized command for SS30 card: " + signal);
         }
     }
 
@@ -230,7 +230,7 @@ public class SWTPc6800 extends MicroComputer8x16
         myCassette.connectToTerminal(myTerminal);
         myTerminal.connectCassetteControl(myCassette);
         myTerminal.addResetFor(myMachine);
-        if (Motorola6800.stats) {
+        if (Motorola6800.STATS) {
             myTerminal.addStatsButtonFor(((SWTPc_MP_A) myMachine.mainslots[1]).processor);
         }
         myCassette.powerOn();
