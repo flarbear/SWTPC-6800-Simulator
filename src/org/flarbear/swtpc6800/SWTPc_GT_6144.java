@@ -4,6 +4,7 @@
 
 package org.flarbear.swtpc6800;
 
+import java.awt.AlphaComposite;
 import java.awt.Canvas;
 import java.awt.Color;
 import java.awt.Dimension;
@@ -13,6 +14,7 @@ import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.awt.image.BufferedImage;
 
 public class SWTPc_GT_6144 extends Canvas implements PIADevice {
     public static final int FF_LOAD_BIT = (1 << 7);
@@ -29,18 +31,24 @@ public class SWTPc_GT_6144 extends Canvas implements PIADevice {
     public static final int BLANKED_GRAPHICS = 5;
 
     public static final int BORDERW = 10;
-    public static final int BORDERH = 10;
+    public static final int BORDERH = 18;
 
     public static final int ROWS = 96;
     public static final int COLS = 64;
-    public static final int PIXW = 512/64;
-    public static final int PIXH = 192/96;
+    public static final int PIXW = 8;
+    public static final int PIXH = 2;
 
+    public static final int SCRDOTCOLS = BORDERW + COLS * PIXW + BORDERW;
+    public static final int SCRDOTROWS = BORDERH + ROWS * PIXH + BORDERH;
+
+    static final Color BLANK_COLOR = new Color(0, 0, 0, 0);
+    static final Color PHOSPHOR_COLOR = Color.GREEN;
+
+    BufferedImage theImage;
     Frame theFrame;
+    SWTPc_CT_64 theCT64;
 
     final boolean pixels[][] = new boolean[COLS][ROWS];
-    int cellw;
-    int cellh;
 
     int col;
     boolean write;
@@ -48,17 +56,13 @@ public class SWTPc_GT_6144 extends Canvas implements PIADevice {
     boolean blanked;
     boolean mixed;
 
-    public void showAt(int x, int y, boolean zoom) {
-        cellw = PIXW;
-        cellh = PIXH;
-        if (zoom) {
-            cellw *= 2;
-            cellh *= 3;
-        }
-        int w = BORDERW + COLS * cellw + BORDERW;
-        int h = BORDERH + ROWS * cellh + BORDERH;
-        w = (int) (Math.ceil(w * SWTPc_CT_64.DPI_SCALE));
-        h = (int) (Math.ceil(h * SWTPc_CT_64.DPI_SCALE));
+    public SWTPc_GT_6144() {
+        theImage = new BufferedImage(COLS * PIXW, ROWS * PIXH, BufferedImage.TYPE_INT_ARGB);
+    }
+
+    public void showAt(int x, int y) {
+        int w = (int) (Math.ceil(7.2 * 96 * SWTPc_CT_64.DPI_SCALE));
+        int h = (int) (Math.ceil(5.4 * 96 * SWTPc_CT_64.DPI_SCALE));
         setPreferredSize(new Dimension(w, h));
         if (theFrame == null) {
             theFrame = new Frame("SWTPc GT-6144 Emulator");
@@ -75,6 +79,37 @@ public class SWTPc_GT_6144 extends Canvas implements PIADevice {
         theFrame.setVisible(true);
     }
 
+    public void showOn(SWTPc_CT_64 theCT64) {
+        if (theFrame != null) {
+            theFrame.dispose();
+            theFrame = null;
+        }
+        this.theCT64 = theCT64;
+    }
+
+    @Override
+    public int getWidth() {
+        return (theCT64 != null)
+               ? theCT64.getWidth()
+               : super.getWidth();
+    }
+
+    @Override
+    public int getHeight() {
+        return (theCT64 != null)
+               ? theCT64.getHeight()
+               : super.getHeight();
+    }
+
+    @Override
+    public void repaint(int x, int y, int w, int h) {
+        if (theCT64 != null) {
+            theCT64.repaint(x, y, w, h);
+        } else {
+            super.repaint(x, y, w, h);
+        }
+    }
+
     @Override
     public void paint(Graphics g) {
         super.paint(g);
@@ -83,47 +118,59 @@ public class SWTPc_GT_6144 extends Canvas implements PIADevice {
 
     @Override
     public void update(Graphics g) {
-        ((Graphics2D) g).scale(SWTPc_CT_64.DPI_SCALE, SWTPc_CT_64.DPI_SCALE);
-        if (blanked) {
+        int w = getWidth();
+        int h = getHeight();
+        if (theCT64 == null) {
             g.setColor(Color.BLACK);
-            g.fillRect(0, 0, getWidth(), getHeight());
-            return;
+            g.fillRect(0, 0, w, h);
         }
-        Rectangle clip = g.getClipBounds();
-        int c0 = clip.x - BORDERW;
-        int c1 = c0 + clip.width;
-        int r0 = clip.y - BORDERH;
-        int r1 = r0 + clip.height;
-        if (c0 < 0 || c1 > COLS * cellw ||
-            r0 < 0 || r1 > ROWS * cellh)
-        {
-            // BORDER was affected, clear entire clip
-            g.setColor(Color.BLACK);
-            g.fillRect(0, 0, getWidth(), getHeight());
+        if (!blanked) {
+            ((Graphics2D) g).scale((float) w / (float) SCRDOTCOLS,
+                                   (float) h / (float) SCRDOTROWS);
+            g.drawImage(theImage, BORDERW, BORDERH, null);
         }
-        c0 = Math.max(0,    c0               / cellw);
-        c1 = Math.min(COLS, (c1 + cellw - 1) / cellw);
-        r0 = Math.max(0,    r0               / cellh);
-        r1 = Math.min(ROWS, (r1 + cellh - 1) / cellh);
-        for (int r = r0; r < r1; r++) {
-            for (int c = c0; c < c1; c++) {
-                g.setColor(pixels[c][r] == inverted ? Color.BLACK : Color.GREEN);
-                g.fillRect(BORDERW + c * cellw,
-                           BORDERH + r * cellh,
-                           cellw, cellh);
+    }
+
+    void updateImage() {
+        Graphics2D g2d = theImage.createGraphics();
+        g2d.setComposite(AlphaComposite.Src);
+        g2d.setColor(BLANK_COLOR);
+        g2d.fillRect(0, 0, theImage.getWidth(), theImage.getHeight());
+        g2d.setComposite(AlphaComposite.SrcOver);
+        g2d.setColor(PHOSPHOR_COLOR);
+        for (int r = 0; r < ROWS; r++) {
+            for (int c = 0; c < COLS; c++) {
+                if (pixels[c][r] != inverted) {
+                    g2d.fillRect(c * PIXW, r * PIXH, PIXW, PIXH);
+                }
             }
         }
     }
 
+    void updateImage(int row, int col) {
+        Graphics2D g2d = theImage.createGraphics();
+        if (pixels[col][row] == inverted) {
+            g2d.setComposite(AlphaComposite.Src);
+            g2d.setColor(BLANK_COLOR);
+        } else {
+            g2d.setComposite(AlphaComposite.SrcOver);
+            g2d.setColor(PHOSPHOR_COLOR);
+        }
+        g2d.fillRect(col * PIXW, row * PIXH, PIXW, PIXH);
+    }
+
     void repaintCell(int row, int col) {
-        int x0 = BORDERW + col * cellw;
-        int y0 = BORDERH + row * cellh;
-        int x1 = x0 + cellw;
-        int y1 = y0 + cellh;
-        int x = (int) Math.floor(x0 * SWTPc_CT_64.DPI_SCALE);
-        int y = (int) Math.floor(y0 * SWTPc_CT_64.DPI_SCALE);
-        int w = ((int) Math.ceil(x1 * SWTPc_CT_64.DPI_SCALE)) - x;
-        int h = ((int) Math.ceil(y1 * SWTPc_CT_64.DPI_SCALE)) - y;
+        updateImage(row, col);
+        int x0 = BORDERW + col * PIXW;
+        int y0 = BORDERH + row * PIXH;
+        int x1 = x0 + PIXW;
+        int y1 = y0 + PIXH;
+        float scalex = (float) getWidth() / (float) SCRDOTCOLS;
+        float scaley = (float) getHeight() / (float) SCRDOTROWS;
+        int x = (int) Math.floor(x0 * scalex);
+        int y = (int) Math.floor(y0 * scaley);
+        int w = ((int) Math.ceil(x1 * scalex)) - x;
+        int h = ((int) Math.ceil(y1 * scaley)) - y;
         repaint(x, y, w, h);
     }
 
@@ -170,6 +217,7 @@ public class SWTPc_GT_6144 extends Canvas implements PIADevice {
                     default:
                         return;
                 }
+                updateImage();
                 repaint();
             }
         }
