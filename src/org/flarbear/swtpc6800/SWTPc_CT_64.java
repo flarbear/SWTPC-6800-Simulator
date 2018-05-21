@@ -18,6 +18,7 @@ import java.awt.Image;
 import java.awt.Panel;
 import java.awt.Rectangle;
 import java.awt.Toolkit;
+import java.awt.GraphicsEnvironment;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.ItemEvent;
@@ -31,22 +32,34 @@ import java.awt.image.BufferedImage;
 public final class SWTPc_CT_64 extends Canvas implements RS232Device {
     public static final int SCRCOLS = 64;
     public static final int SCRROWS = 16;
-    public static final int CHARCOLS = 8;
-    public static final int CHARROWS = 13;
+    public static final int CHARDOTCOLS = 8;
+    public static final int CHARDOTROWS = 13;
+
+    public static final int BORDERW = 10;
+    public static final int BORDERH = 10;
+    public static final int SCRDOTCOLS = BORDERW + SCRCOLS * CHARDOTCOLS + BORDERW;
+    public static final int SCRDOTROWS = BORDERH + SCRROWS * CHARDOTROWS + BORDERH;
+
+    static final Color BLANK_COLOR = Color.BLACK;
+    static final Color PHOSPHOR_COLOR = Color.GREEN;
 
     public static final float DPI_SCALE;
     static {
-        int res = Toolkit.getDefaultToolkit().getScreenResolution();
-        DPI_SCALE = (res > 96) ? res / 96.0f : 1.0f;
+        float scale = 1.0f;
+        if (GraphicsEnvironment
+                .getLocalGraphicsEnvironment()
+                .getDefaultScreenDevice()
+                .getDefaultConfiguration()
+                .getDefaultTransform()
+                .isIdentity())
+        {
+            int res = Toolkit.getDefaultToolkit().getScreenResolution();
+            if (res > 96) {
+                scale = res / 96.0f;
+            }
+        }
+        DPI_SCALE = scale;
     }
-
-    private int pixw;
-    private int pixh;
-    private int charw;
-    private int charh;
-
-    static final int BORDERW = 10;
-    static final int BORDERH = 10;
 
     private RS232Device serialOut;
     private SWTPc6800 theComputer;
@@ -63,7 +76,6 @@ public final class SWTPc_CT_64 extends Canvas implements RS232Device {
 
     private boolean ShowCtrl;
     private boolean UClock;
-    private boolean BigChars;
 
     public SWTPc_CT_64() {
         screen = new byte[SCRROWS * SCRCOLS];
@@ -84,41 +96,33 @@ public final class SWTPc_CT_64 extends Canvas implements RS232Device {
     private final Image charimgs[];
 
     private void calculateCharImages() {
-        if (BigChars) {
-            pixw = 2;
-            pixh = 3;
-        } else {
-            pixw = pixh = 1;
-        }
-        charw = CHARCOLS * pixw;
-        charh = CHARROWS * pixh;
         for (int i = 0; i < 256; i++) {
-            charimgs[i] = new BufferedImage(charw, charh,
+            charimgs[i] = new BufferedImage(CHARDOTCOLS, CHARDOTROWS,
                     BufferedImage.TYPE_BYTE_INDEXED);
             Graphics g = charimgs[i].getGraphics();
-            int csi = (i & 0x7f) * CHARROWS;
+            int csi = (i & 0x7f) * CHARDOTROWS;
             if (i < 128) {
-                g.setColor(Color.black);
-                g.fillRect(0, 0, charw, charh);
-                g.setColor(Color.green);
+                g.setColor(BLANK_COLOR);
+                g.fillRect(0, 0, CHARDOTCOLS, CHARDOTROWS);
+                g.setColor(PHOSPHOR_COLOR);
             } else {
-                g.setColor(Color.green);
-                g.fillRect(0, 0, charw, charh);
-                g.setColor(Color.black);
+                g.setColor(PHOSPHOR_COLOR);
+                g.fillRect(0, 0, CHARDOTCOLS, CHARDOTROWS);
+                g.setColor(BLANK_COLOR);
             }
             int y = 0;
-            for (int j = 0; j < CHARROWS; j++) {
+            for (int j = 0; j < CHARDOTROWS; j++) {
                 int b = CHARSET_6575[csi];
                 int x = 0;
                 while (b != 0) {
                     if ((b & 0x80) != 0) {
-                        g.fillRect(x, y, pixw, pixh);
+                        g.fillRect(x, y, 1, 1);
                     }
                     b <<= 1;
-                    x += pixw;
+                    x++;
                 }
                 csi++;
-                y += pixh;
+                y++;
             }
         }
         if (theFrame != null) {
@@ -196,17 +200,6 @@ public final class SWTPc_CT_64 extends Canvas implements RS232Device {
         });
         cb.setFocusable(false);
         p.add(cb);
-        cb = new Checkbox("Big Chars", BigChars);
-        cb.addItemListener(new ItemListener() {
-            @Override
-            public void itemStateChanged(ItemEvent e) {
-                BigChars = (e.getStateChange() == ItemEvent.SELECTED);
-                calculateCharImages();
-                repaint();
-            }
-        });
-        cb.setFocusable(false);
-        p.add(cb);
         theFrame.add(p, "South");
         theFrame.pack();
         theFrame.setVisible(true);
@@ -268,7 +261,8 @@ public final class SWTPc_CT_64 extends Canvas implements RS232Device {
     }
 
     private void showGraphics() {
-        theGraphics.showAt(theFrame.getX() + theFrame.getWidth(), theFrame.getY(), BigChars);
+        theGraphics.showAt(theFrame.getX() + theFrame.getWidth(), theFrame.getY());
+//        theGraphics.showOn(this);
     }
 
     public void connectGraphics(SWTPc_GT_6144 theGraphics) {
@@ -350,14 +344,16 @@ public final class SWTPc_CT_64 extends Canvas implements RS232Device {
     }
 
     public Rectangle getCharRect(int charx, int chary) {
-        int x0 = BORDERW + charx * charw;
-        int y0 = BORDERH + chary * charh;
-        int x1 = x0 + charw;
-        int y1 = y0 + charh;
-        int x = (int) Math.floor(x0 * DPI_SCALE);
-        int y = (int) Math.floor(y0 * DPI_SCALE);
-        int w = ((int) Math.ceil(x1 * DPI_SCALE)) - x;
-        int h = ((int) Math.ceil(y1 * DPI_SCALE)) - y;
+        int x0 = BORDERW + charx * CHARDOTCOLS;
+        int y0 = BORDERH + chary * CHARDOTROWS;
+        int x1 = x0 + CHARDOTCOLS;
+        int y1 = y0 + CHARDOTROWS;
+        float scalex = (float) getWidth()  / (float) SCRDOTCOLS;
+        float scaley = (float) getHeight() / (float) SCRDOTROWS;
+        int x = (int) Math.floor(x0 * scalex);
+        int y = (int) Math.floor(y0 * scaley);
+        int w = ((int) Math.ceil(x1 * scalex)) - x;
+        int h = ((int) Math.ceil(y1 * scaley)) - y;
         return new Rectangle(x, y, w, h);
     }
 
@@ -369,16 +365,26 @@ public final class SWTPc_CT_64 extends Canvas implements RS232Device {
 
     @Override
     public Dimension getPreferredSize() {
-        int w = BORDERW + SCRCOLS * charw + BORDERW;
-        int h = BORDERH + SCRROWS * charh + BORDERH;
-        w = (int) Math.ceil(w * DPI_SCALE);
-        h = (int) Math.ceil(h * DPI_SCALE);
+        int w = (int) Math.ceil(7.2 * 96 * DPI_SCALE);
+        int h = (int) Math.ceil(5.4 * 96 * DPI_SCALE);
         return new Dimension(w, h);
     }
 
     @Override
     public void paint(Graphics g) {
-        ((Graphics2D) g).scale(DPI_SCALE, DPI_SCALE);
+        super.paint(g);
+        update(g);
+    }
+
+    @Override
+    public void update(Graphics g) {
+        drawChars(g.create());
+//        theGraphics.update(g);
+    }
+
+    void drawChars(Graphics g) {
+        ((Graphics2D) g).scale((float) getWidth() / (float) SCRDOTCOLS,
+                               (float) getHeight() / (float) SCRDOTROWS);
         int pos = 0;
         int y = BORDERH;
         for (int r = 0; r < SCRROWS; r++) {
@@ -389,10 +395,10 @@ public final class SWTPc_CT_64 extends Canvas implements RS232Device {
                     ch ^= 0x80;
                 }
                 g.drawImage(charimgs[ch], x, y, null);
-                x += charw;
+                x += CHARDOTCOLS;
                 pos++;
             }
-            y += charh;
+            y += CHARDOTROWS;
         }
     }
 
