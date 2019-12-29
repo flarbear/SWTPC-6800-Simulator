@@ -1,0 +1,19 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Always perform LF normalization on these files
+*.c text
+*.h text
+*.java text
+*.S19 text
+
+# Declare files that will always have CRLF line endings on checkout
+*.sln eol=crlf
+*.bat eol=crlf
+
+# Never perform LF normalization on these files
+*.png binary
+*.jpg binary
+*.zip binary
+*.jar binary
+
