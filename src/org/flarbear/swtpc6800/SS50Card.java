@@ -5,7 +5,7 @@
 package org.flarbear.swtpc6800;
 
 /**
- * A data/processing card for a SWTPc 6800 sytem.
+ * A data/processing card for a SWTPc 6800 system.
  * These boards had an 8-bit data bus and a 16-bit address bus so
  * they could support reads and writes to 65K total byte addresses,
  * 8 bits at a time.
