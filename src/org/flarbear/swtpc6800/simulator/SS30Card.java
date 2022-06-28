@@ -2,7 +2,7 @@
  * Copyright 2014, Jim Graham, Flarbear Widgets
  */
 
-package org.flarbear.swtpc6800;
+package org.flarbear.swtpc6800.simulator;
 
 /**
  * An IO card for a SWTPc 6800 system.

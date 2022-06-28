@@ -2,7 +2,7 @@
  * Copyright 2014, 2016, Jim Graham, Flarbear Widgets
  */
 
-package org.flarbear.swtpc6800;
+package org.flarbear.swtpc6800.simulator;
 
 import java.awt.BorderLayout;
 import java.awt.Button;
@@ -185,13 +185,13 @@ public class SWTPc_AC_30 extends Panel {
     private static String labels[];
 
     private static final String TAPE_FILES[] = {
-        "resources/TicTacToePatch.S19",
-        "resources/TSCMBasicPlusPatch.S19",
-        "resources/MITSBasicPatch.S19",
-        "resources/TSCSPACEPatch.S19",
-        "resources/SWTSPRAC.S19",
-        "resources/SwtBarTst-1.S19",
-        "resources/SwtStarTrekProg.S19",
+        "/org/flarbear/swtpc6800/resources/TicTacToePatch.S19",
+        "/org/flarbear/swtpc6800/resources/TSCMBasicPlusPatch.S19",
+        "/org/flarbear/swtpc6800/resources/MITSBasicPatch.S19",
+        "/org/flarbear/swtpc6800/resources/TSCSPACEPatch.S19",
+        "/org/flarbear/swtpc6800/resources/SWTSPRAC.S19",
+        "/org/flarbear/swtpc6800/resources/SwtBarTst-1.S19",
+        "/org/flarbear/swtpc6800/resources/SwtStarTrekProg.S19",
     };
 
     private static void findLabels() {

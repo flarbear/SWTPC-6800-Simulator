@@ -2,7 +2,7 @@
  * Copyright 2014, Jim Graham, Flarbear Widgets
  */
 
-package org.flarbear.swtpc6800;
+package org.flarbear.swtpc6800.simulator;
 
 public interface SS50Bus extends Bus8x16 {
     public abstract void raiseRESET();

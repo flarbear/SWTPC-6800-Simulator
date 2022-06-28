@@ -2,7 +2,7 @@
  * Copyright 2014, 2016, Jim Graham, Flarbear Widgets
  */
 
-package org.flarbear.swtpc6800;
+package org.flarbear.swtpc6800.simulator;
 
 @SuppressWarnings("PointlessBitwiseExpression")
 public class Motorola6800
@@ -743,7 +743,7 @@ public class Motorola6800
         if ((a & 0x0F) > 0x09 || (cctmp & COND_H) != 0) {
             a += 6;
         }
-        if (a > 0x9F || (cctmp & COND_C) != 0) {
+        if (a > 0x9A || (cctmp & COND_C) != 0) {
             a += 0x60;
             cctmp |= COND_C;
             cctmp |= COND_V;  // ???
@@ -756,6 +756,47 @@ public class Motorola6800
         }
         accA = (byte) a;
         ccode = (byte) cctmp;
+    }
+
+    static class State {
+        char PCreg;
+        char SPreg;
+        byte ccode;
+
+        char IXreg;
+
+        byte accA;
+        byte accB;
+    }
+
+    void test(State state, byte mem[]) {
+        this.PCreg = state.PCreg;
+        this.SPreg = state.SPreg;
+        this.ccode = state.ccode;
+        this.IXreg = state.IXreg;
+        this.accA = state.accA;
+        this.accB = state.accB;
+
+        this.theBus = new Bus8x16() {
+            @Override
+            public byte load(char address) {
+                return mem[address];
+            }
+
+            @Override
+            public void store(char address, byte data) {
+                mem[address] = data;
+            }
+        };
+
+        executeInstruction();
+
+        state.PCreg = this.PCreg;
+        state.SPreg = this.SPreg;
+        state.ccode = this.ccode;
+        state.IXreg = this.IXreg;
+        state.accA = this.accA;
+        state.accB = this.accB;
     }
 
     private void opMove16(int flags) {
@@ -800,6 +841,8 @@ public class Motorola6800
             cctmp |= COND_N;
         }
         // Strangely, V bit is overflow (? not carry?) from subtracting LSBs...
+        // Is this correct? The M6800 manual shows the computation on the
+        // MSB bit 7 of the operands and the result.
         if (((byte) a) - ((byte) b) != ((byte) c)) {
             cctmp |= COND_V;
         }

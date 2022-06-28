@@ -2,7 +2,7 @@
  * Copyright 2014, Jim Graham, Flarbear Widgets
  */
 
-package org.flarbear.swtpc6800;
+package org.flarbear.swtpc6800.simulator;
 
 import java.io.InputStream;
 import java.io.BufferedInputStream;
@@ -128,7 +128,7 @@ public class SWTPc_MP_A extends SS50Card {
         InputStream is = null;
         int bytesloaded = 0;
         try {
-            is = getClass().getResourceAsStream("resources/SwtMik.S19");
+            is = getClass().getResourceAsStream("/org/flarbear/swtpc6800/resources/SwtMik.S19");
             BufferedInputStream bis = new BufferedInputStream(is);
 
             int ch;

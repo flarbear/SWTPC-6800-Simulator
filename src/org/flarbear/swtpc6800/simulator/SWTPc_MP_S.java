@@ -2,7 +2,7 @@
  * Copyright 2014, Jim Graham, Flarbear Widgets
  */
 
-package org.flarbear.swtpc6800;
+package org.flarbear.swtpc6800.simulator;
 
 @SuppressWarnings("PointlessBitwiseExpression")
 public class SWTPc_MP_S extends SS30Card implements RS232Device {

@@ -2,7 +2,7 @@
  * Copyright 2014, Jim Graham, Flarbear Widgets
  */
 
-package org.flarbear.swtpc6800;
+package org.flarbear.swtpc6800.simulator;
 
 public class RomDevice8x16 extends MemoryDevice8x16 {
     public RomDevice8x16(char base, int len) {

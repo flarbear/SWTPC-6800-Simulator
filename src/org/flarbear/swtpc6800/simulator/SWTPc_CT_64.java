@@ -2,7 +2,7 @@
  * Copyright 2014, 2016, Jim Graham, Flarbear Widgets
  */
 
-package org.flarbear.swtpc6800;
+package org.flarbear.swtpc6800.simulator;
 
 import java.awt.BorderLayout;
 import java.awt.Button;
