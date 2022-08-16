@@ -4,6 +4,8 @@
 
 package org.flarbear.swtpc6800.hwemu;
 
+import org.flarbear.swtpc6800.hwemu.SignalState.Transition;
+
 /**
  * This class holds the state of an SS-50 bus.
  * 
@@ -80,7 +82,7 @@ package org.flarbear.swtpc6800.hwemu;
  *
  * @author Flar
  */
-public class SS50Bus {
+public class SS50Bus implements BusState.Source {
     public static enum Line {
         D0(1),
         D1(),
@@ -155,21 +157,35 @@ public class SS50Bus {
         public final long bit;
     }
 
+    private static Line[] DATA_LINES = {
+        Line.D0,  Line.D1,  Line.D2,  Line.D3,
+        Line.D4,  Line.D5,  Line.D6,  Line.D7,
+    };
+
+    private static Line[] ADDRESS_LINES = {
+        Line.A0,  Line.A1,  Line.A2,  Line.A3,
+        Line.A4,  Line.A5,  Line.A6,  Line.A7,
+        Line.A8,  Line.A9,  Line.A10, Line.A11,
+        Line.A12, Line.A13, Line.A14, Line.A15,
+    };
+
     static {
         long bits = 0;
         int prevIndex = 1;
         for (Line line : Line.values()) {
             assert(line.index == prevIndex);
             prevIndex++;
+            long bit;
             if (line == Line.Index) {
                 assert(line.bit == 0);
-                bits |= (1L << line.index);
+                bit = (1L << line.index);
             } else {
                 assert(line.bit != 0);
-                assert((line.bit ^ (line.bit - 1)) == 0);
-                assert((bits & line.bit) == 0);
-                bits |= line.bit;
+                bit = line.bit;
             }
+            assert((bit ^ (bit - 1)) == 0);
+            assert((bits & bit) == 0);
+            bits |= bit;
         }
         assert(bits == ((1L << 50) << 1));
 
@@ -213,40 +229,218 @@ public class SS50Bus {
         return mask;
     }
 
-    private static final long DATA_MASK = Mask(Line.D0, Line.D1, Line.D2, Line.D3,
-                                               Line.D4, Line.D5, Line.D6, Line.D7);
-    private static final long ADDR_MASK = Mask(Line.A0, Line.A1, Line.A2, Line.A3,
-                                               Line.A4, Line.A5, Line.A6, Line.A7,
-                                               Line.A8, Line.A9, Line.A10, Line.A11,
-                                               Line.A12, Line.A13, Line.A14, Line.A15);
+    public static long DataMask(byte data) {
+        return ArrayMask(DATA_LINES, data);
+    }
+
+    public static long AddressMask(char address) {
+        return ArrayMask(ADDRESS_LINES, address);
+    }
+
+    private static long ArrayMask(Line[] lines, int value) {
+        int bit = 1;
+        long mask = 0;
+        for (int i = 0; i < lines.length; i++, bit <<= 1) {
+            if ((value & bit) != 0) {
+                mask |= lines[i].bit;
+            }
+        }
+        return mask;
+    }
+
+    private static final long ALL_LINES_MASK = Mask(Line.values());
+    private static final long DATA_MASK = DataMask((byte) 0xff);
+    private static final long ADDR_MASK = AddressMask((char) 0xFFFF);
+
+    public static boolean ValidMask(long mask) {
+        return (mask == (mask & ALL_LINES_MASK));
+    }
 
     private long prevLines;
     private long curLines;
+    private BusState.Listener listenerHead;
+    private SignalState.LineState lineSources[] = new SignalState.LineState[Line.values().length + 1];
+
+    private SignalState.LineState lineState(Line line) {
+        SignalState.LineState source = lineSources[line.index];
+        if (source == null) {
+            lineSources[line.index] = source =
+                    () -> SignalState.Level((curLines & line.bit) != 0);
+        }
+        return source;
+    }
+
+    private static class BusTrigger extends SignalState.TriggerImpl implements BusState.Listener {
+        BusTrigger(SignalState.LineState triggerLine) {
+            this.triggerLine = triggerLine;
+        }
+
+        private final SignalState.LineState triggerLine;
+        private SignalState.Level prevState;
+
+        private SignalState.Rising rising;
+        private SignalState.Falling falling;
+
+        SignalState.Trigger getRising() {
+            if (rising == null) {
+                rising = new SignalState.Rising();
+                addListener(rising);
+            }
+            return rising;
+        }
+
+        SignalState.Trigger getFalling() {
+            if (falling == null) {
+                falling = new SignalState.Falling();
+                addListener(falling);
+            }
+            return falling;
+        }
+
+        @Override
+        public void busStateChanged() {
+            SignalState.Level curState = triggerLine.getState();
+            if (curState != prevState) {
+                notifyListeners(curState.isHigh() ? Transition.RISING : Transition.FALLING);
+                prevState = curState;
+            }
+        }
+    }
+
+    BusTrigger phi1Trigger;
+    BusTrigger phi2Trigger;
+
+    BusTrigger baud110Trigger;
+    BusTrigger baud150Trigger;
+    BusTrigger baud300Trigger;
+    BusTrigger baud600Trigger;
+    BusTrigger baud1200Trigger;
+
+    private BusTrigger makeTrigger(BusTrigger cached, Line line) {
+        if (cached == null) {
+            cached = new BusTrigger(lineState(line));
+            addListener(cached);
+        }
+        return cached;
+    }
+
+    private BusTrigger getPhi1Trigger() { return phi1Trigger = makeTrigger(phi1Trigger, Line.Phi1); }
+    private BusTrigger getPhi2Trigger() { return phi2Trigger = makeTrigger(phi2Trigger, Line.Phi2); }
+
+    private BusTrigger getBaud110Trigger() { return baud110Trigger = makeTrigger(baud110Trigger, Line.Baud110); }
+    private BusTrigger getBaud150Trigger() { return baud110Trigger = makeTrigger(baud150Trigger, Line.Baud150); }
+    private BusTrigger getBaud300Trigger() { return baud110Trigger = makeTrigger(baud300Trigger, Line.Baud300); }
+    private BusTrigger getBaud600Trigger() { return baud110Trigger = makeTrigger(baud600Trigger, Line.Baud600); }
+    private BusTrigger getBaud1200Trigger() { return baud110Trigger = makeTrigger(baud1200Trigger, Line.Baud1200); }
+
+    public SignalState.LineState D0() { return lineState(Line.D0); }
+    public SignalState.LineState D1() { return lineState(Line.D1); }
+    public SignalState.LineState D2() { return lineState(Line.D2); }
+    public SignalState.LineState D3() { return lineState(Line.D3); }
+    public SignalState.LineState D4() { return lineState(Line.D4); }
+    public SignalState.LineState D5() { return lineState(Line.D5); }
+    public SignalState.LineState D6() { return lineState(Line.D6); }
+    public SignalState.LineState D7() { return lineState(Line.D7); }
+
+    public SignalState.LineState A0() { return lineState(Line.A0); }
+    public SignalState.LineState A1() { return lineState(Line.A1); }
+    public SignalState.LineState A2() { return lineState(Line.A2); }
+    public SignalState.LineState A3() { return lineState(Line.A3); }
+    public SignalState.LineState A4() { return lineState(Line.A4); }
+    public SignalState.LineState A5() { return lineState(Line.A5); }
+    public SignalState.LineState A6() { return lineState(Line.A6); }
+    public SignalState.LineState A7() { return lineState(Line.A7); }
+    public SignalState.LineState A8() { return lineState(Line.A8); }
+    public SignalState.LineState A9() { return lineState(Line.A9); }
+    public SignalState.LineState A10() { return lineState(Line.A10); }
+    public SignalState.LineState A11() { return lineState(Line.A11); }
+    public SignalState.LineState A12() { return lineState(Line.A12); }
+    public SignalState.LineState A13() { return lineState(Line.A13); }
+    public SignalState.LineState A14() { return lineState(Line.A14); }
+    public SignalState.LineState A15() { return lineState(Line.A15); }
+
+    public SignalState.LineState NMI() { return lineState(Line.NMI); }
+    public SignalState.LineState IRQ() { return lineState(Line.IRQ); }
+    public SignalState.LineState VMA() { return lineState(Line.VMA); }
+    public SignalState.LineState R_W() { return lineState(Line.R_W); }
+    public SignalState.LineState Reset() { return lineState(Line.Reset); }
+    public SignalState.LineState Halt() { return lineState(Line.HALT); }
+
+    public SignalState.LineState Phi1() { return lineState(Line.Phi1); }
+    public SignalState.LineState Phi2() { return lineState(Line.Phi2); }
+
+    public SignalState.Trigger Phi1Trigger() { return getPhi1Trigger(); }
+    public SignalState.Trigger Phi1Rising() { return getPhi1Trigger().getRising(); }
+    public SignalState.Trigger Phi1Falling() { return getPhi1Trigger().getFalling(); }
+
+    public SignalState.Trigger Phi2Trigger() { return getPhi2Trigger(); }
+    public SignalState.Trigger Phi2Rising() { return getPhi2Trigger().getRising(); }
+    public SignalState.Trigger Phi2Falling() { return getPhi2Trigger().getFalling(); }
+
+    public SignalState.Trigger Baud110Trigger() { return getBaud110Trigger(); }
+    public SignalState.Trigger Baud110Rising() { return getBaud110Trigger().getRising(); }
+    public SignalState.Trigger Baud110Falling() { return getBaud110Trigger().getFalling(); }
+    public SignalState.Trigger Baud150Trigger() { return getBaud150Trigger(); }
+    public SignalState.Trigger Baud150Rising() { return getBaud150Trigger().getRising(); }
+    public SignalState.Trigger Baud150Falling() { return getBaud150Trigger().getFalling(); }
+    public SignalState.Trigger Baud300Trigger() { return getBaud300Trigger(); }
+    public SignalState.Trigger Baud300Rising() { return getBaud300Trigger().getRising(); }
+    public SignalState.Trigger Baud300Falling() { return getBaud300Trigger().getFalling(); }
+    public SignalState.Trigger Baud600Trigger() { return getBaud600Trigger(); }
+    public SignalState.Trigger Baud600Rising() { return getBaud600Trigger().getRising(); }
+    public SignalState.Trigger Baud600Falling() { return getBaud600Trigger().getFalling(); }
+    public SignalState.Trigger Baud1200Trigger() { return getBaud1200Trigger(); }
+    public SignalState.Trigger Baud1200Rising() { return getBaud1200Trigger().getRising(); }
+    public SignalState.Trigger Baud1200Falling() { return getBaud1200Trigger().getFalling(); }
+
+    @Override
+    public void addListener(BusState.Listener listener) {
+        listenerHead = BusState.chain(listenerHead, listener);
+    }
 
     public void pushLines(long newLines) {
         prevLines = curLines;
         curLines = newLines;
+        if (listenerHead != null) {
+            listenerHead.busStateChanged();
+        }
     }
 
     public long currentLines() {
         return curLines;
     }
 
+    public static byte getDataLines(long lines) {
+        return (byte) (((int) lines) >> Line.D0.index);
+    }
+
     public byte getData() {
-        return (byte) (((int) curLines) >> Line.D0.index);
+        return getDataLines(curLines);
+    }
+
+    public static long setDataLines(long lines, byte data) {
+        return (lines & ~DATA_MASK) | ((data & 0xFF) << Line.D0.index);
     }
 
     public void setData(byte data) {
-        curLines = (curLines & ~DATA_MASK) | ((data & 0xFF) << Line.D0.index);
+        curLines = setDataLines(curLines, data);
+    }
+
+    public static char getAddress(long lines) {
+        return addressReverse[(((int) lines) >> Line.A15.index) & 0xFFFF];
     }
 
     public char getAddress() {
-        return addressReverse[(((int) curLines) >> Line.A15.index) & 0xFFFF];
+        return getAddress(curLines);
+    }
+
+    public static long setAddressLines(long lines, char address) {
+        address = addressReverse[address];
+        return (lines & ~ADDR_MASK) | ((address & 0xFFFFL) << Line.A15.index);
     }
 
     public void setAddress(char address) {
-        address = addressReverse[address];
-        curLines = (curLines & ~ADDR_MASK) | ((address & 0xFFFFL) << Line.A15.index);
+        curLines = setAddressLines(curLines, address);
     }
 
     public boolean linesMatch(long mask, long value) {
@@ -289,15 +483,19 @@ public class SS50Bus {
     static {
         addressReverse = new char[0x10000];
         for (int i = 0; i <= 0xFFFF; i++) {
-            int fwd = i;
-            int rev = 0;
-            for (int j = 0; j < 16; j++) {
-                rev <<= 1;
-                rev |= (fwd & 1);
-                fwd >>= 1;
-            }
-            assert(rev >= 0 && rev <= 0xFFFF);
-            addressReverse[i] = (char) rev;
+            addressReverse[i] = computeReverse((char) i);
         }
+    }
+
+    private static char computeReverse(char addr) {
+        int fwd = addr;
+        int rev = 0;
+        for (int j = 0; j < 16; j++) {
+            rev <<= 1;
+            rev |= (fwd & 1);
+            fwd >>= 1;
+        }
+        assert(rev >= 0 && rev <= 0xFFFF);
+        return (char) rev;
     }
 }

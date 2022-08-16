@@ -59,7 +59,7 @@ public class M6800Microcode {
         }
 
         CycleTask and(CycleTask code) {
-            // Make sure to append the and task to the last CycleTask
+            // Make sure to append the "and" task to the last CycleTask
             // in the "then" chain so that then() and and() calls
             // can be interspersed and will always build from the
             // tail end of all tasks.
@@ -132,13 +132,13 @@ public class M6800Microcode {
     static final CycleTask LOAD_INSTRUCTION = new TerminalCycleTask() {
         @Override
         protected void handlePhi1(M6800 cpu) {
-            cpu.busAddress = cpu.PC++;
+            cpu.addressLines = cpu.PC++;
             cpu.isRead = true;
         }
 
         @Override
-        protected void handlePhi2Leading(M6800 cpu) {
-            cpu.nextCode = instructionCodes[cpu.busData & 0xFF];
+        protected void handlePhi2Trailing(M6800 cpu) {
+            cpu.nextCode = instructionCodes[cpu.dataLines & 0xFF];
         }
     };
 
@@ -175,86 +175,86 @@ public class M6800Microcode {
             case A -> new CycleTask() {
                 @Override
                 protected void handlePhi2Trailing(M6800 cpu) {
-                    cpu.A = cpu.busData;
+                    cpu.A = cpu.dataLines;
                 }
             };
             case B -> new CycleTask() {
                 @Override
                 protected void handlePhi2Trailing(M6800 cpu) {
-                    cpu.B = cpu.busData;
+                    cpu.B = cpu.dataLines;
                 }
             };
             case XHi -> new CycleTask() {
                 @Override
                 protected void handlePhi2Trailing(M6800 cpu) {
-                    cpu.X = setHi(cpu.X, cpu.busData);
+                    cpu.X = setHi(cpu.X, cpu.dataLines);
                 }
             };
             case XLo -> new CycleTask() {
                 @Override
                 protected void handlePhi2Trailing(M6800 cpu) {
-                    cpu.X = setLo(cpu.X, cpu.busData);
+                    cpu.X = setLo(cpu.X, cpu.dataLines);
                 }
             };
             case SHi -> new CycleTask() {
                 @Override
                 protected void handlePhi2Trailing(M6800 cpu) {
-                    cpu.SP = setHi(cpu.SP, cpu.busData);
+                    cpu.SP = setHi(cpu.SP, cpu.dataLines);
                 }
             };
             case SLo -> new CycleTask() {
                 @Override
                 protected void handlePhi2Trailing(M6800 cpu) {
-                    cpu.SP = setLo(cpu.SP, cpu.busData);
+                    cpu.SP = setLo(cpu.SP, cpu.dataLines);
                 }
             };
             case PCHi -> new CycleTask() {
                 @Override
                 protected void handlePhi2Trailing(M6800 cpu) {
-                    cpu.PC = setHi(cpu.PC, cpu.busData);
+                    cpu.PC = setHi(cpu.PC, cpu.dataLines);
                 }
             };
             case PCLo -> new CycleTask() {
                 @Override
                 protected void handlePhi2Trailing(M6800 cpu) {
-                    cpu.PC = setLo(cpu.PC, cpu.busData);
+                    cpu.PC = setLo(cpu.PC, cpu.dataLines);
                 }
             };
             case CC -> new CycleTask() {
                 @Override
                 protected void handlePhi2Trailing(M6800 cpu) {
-                    cpu.opCodes = cpu.busData;
+                    cpu.opCodes = cpu.dataLines;
                 }
             };
             case THi -> new CycleTask() {
                 @Override
                 protected void handlePhi2Trailing(M6800 cpu) {
-                    cpu.tempAddrHi = cpu.busData;
+                    cpu.tempAddrHi = cpu.dataLines;
                 }
             };
             case TLo -> new CycleTask() {
                 @Override
                 protected void handlePhi2Trailing(M6800 cpu) {
-                    cpu.tempAddrLo = cpu.busData;
+                    cpu.tempAddrLo = cpu.dataLines;
                 }
             };
             case TAddr -> new CycleTask() {
                 @Override
                 protected void handlePhi2Trailing(M6800 cpu) {
                     cpu.tempAddrHi = 0;
-                    cpu.tempAddrLo = cpu.busData;
+                    cpu.tempAddrLo = cpu.dataLines;
                 }
             };
             case T0 -> new CycleTask() {
                 @Override
                 protected void handlePhi2Trailing(M6800 cpu) {
-                    cpu.tempData0 = cpu.busData;
+                    cpu.tempData0 = cpu.dataLines;
                 }
             };
             case T1 -> new CycleTask() {
                 @Override
                 protected void handlePhi2Trailing(M6800 cpu) {
-                    cpu.tempData1 = cpu.busData;
+                    cpu.tempData1 = cpu.dataLines;
                 }
             };
             default -> throw new RuntimeException("BusTo not supported for "+reg);
@@ -266,67 +266,67 @@ public class M6800Microcode {
             case A -> new CycleTask() {
                 @Override
                 protected void handlePhi2Leading(M6800 cpu) {
-                    cpu.busData = cpu.A;
+                    cpu.dataLines = cpu.A;
                 }
             };
             case B -> new CycleTask() {
                 @Override
                 protected void handlePhi2Leading(M6800 cpu) {
-                    cpu.busData = cpu.B;
+                    cpu.dataLines = cpu.B;
                 }
             };
             case XHi -> new CycleTask() {
                 @Override
                 protected void handlePhi2Leading(M6800 cpu) {
-                    cpu.busData = (byte) (cpu.X >> 16);
+                    cpu.dataLines = (byte) (cpu.X >> 16);
                 }
             };
             case XLo -> new CycleTask() {
                 @Override
                 protected void handlePhi2Leading(M6800 cpu) {
-                    cpu.busData = (byte) (cpu.X);
+                    cpu.dataLines = (byte) (cpu.X);
                 }
             };
             case SHi -> new CycleTask() {
                 @Override
                 protected void handlePhi2Leading(M6800 cpu) {
-                    cpu.busData = (byte) (cpu.SP >> 16);
+                    cpu.dataLines = (byte) (cpu.SP >> 16);
                 }
             };
             case SLo -> new CycleTask() {
                 @Override
                 protected void handlePhi2Leading(M6800 cpu) {
-                    cpu.busData = (byte) (cpu.SP);
+                    cpu.dataLines = (byte) (cpu.SP);
                 }
             };
             case PCHi -> new CycleTask() {
                 @Override
                 protected void handlePhi2Leading(M6800 cpu) {
-                    cpu.busData = (byte) (cpu.PC >> 16);
+                    cpu.dataLines = (byte) (cpu.PC >> 16);
                 }
             };
             case PCLo -> new CycleTask() {
                 @Override
                 protected void handlePhi2Leading(M6800 cpu) {
-                    cpu.busData = (byte) (cpu.PC);
+                    cpu.dataLines = (byte) (cpu.PC);
                 }
             };
             case CC -> new CycleTask() {
                 @Override
                 protected void handlePhi2Leading(M6800 cpu) {
-                    cpu.busData = (byte) (cpu.opCodes | 0xC0);
+                    cpu.dataLines = (byte) (cpu.opCodes | 0xC0);
                 }
             };
             case T0 -> new CycleTask() {
                 @Override
                 protected void handlePhi2Leading(M6800 cpu) {
-                    cpu.busData = cpu.tempData0;
+                    cpu.dataLines = cpu.tempData0;
                 }
             };
             case T1 -> new CycleTask() {
                 @Override
                 protected void handlePhi2Leading(M6800 cpu) {
-                    cpu.busData = cpu.tempData1;
+                    cpu.dataLines = cpu.tempData1;
                 }
             };
             default -> throw new RuntimeException("BusFrom not supported for "+reg);
@@ -511,7 +511,7 @@ public class M6800Microcode {
         };
     }
 
-    private static CycleTask AddTempLo() {
+    private static CycleTask AddTempAddrLo() {
         return new CycleTask() {
             @Override
             protected void handlePhi1(M6800 cpu) {
@@ -522,7 +522,7 @@ public class M6800Microcode {
         };
     }
 
-    private static CycleTask AddTempHi() {
+    private static CycleTask AddTempAddrHi() {
         return new CycleTask() {
             @Override
             protected void handlePhi1(M6800 cpu) {
@@ -543,7 +543,7 @@ public class M6800Microcode {
         return new CycleTask() {
             @Override
             protected void handlePhi1(M6800 cpu) {
-                cpu.busAddress = cpu.PC++;
+                cpu.addressLines = cpu.PC++;
                 cpu.isRead = true;
             }
         }.and(BusTo(dest));
@@ -582,7 +582,7 @@ public class M6800Microcode {
         return new CycleTask() {
             @Override
             protected void handlePhi1(M6800 cpu) {
-                cpu.busAddress = (char) ((cpu.tempAddrHi << 8) + cpu.tempAddrLo);
+                cpu.addressLines = (char) ((cpu.tempAddrHi << 8) + cpu.tempAddrLo);
                 cpu.isRead = true;
             }
         }.and(BusTo(dest));
@@ -596,7 +596,7 @@ public class M6800Microcode {
         return BusFrom(src).and(new CycleTask() {
             @Override
             protected void handlePhi1(M6800 cpu) {
-                cpu.busAddress = (char) ((cpu.tempAddrHi << 8) + cpu.tempAddrLo);
+                cpu.addressLines = (char) ((cpu.tempAddrHi << 8) + cpu.tempAddrLo);
                 cpu.isRead = false;
             }
         });
@@ -656,30 +656,30 @@ public class M6800Microcode {
 
     private static CycleTask LoadIND(Reg dest) {
         return LoadIMM(Reg.T0).and(TempFrom(Reg.X))
-                .then(AddTempLo())
-                .then(AddTempHi())
+                .then(AddTempAddrLo())
+                .then(AddTempAddrHi())
                 .then(LoadFromTempAddr(dest));
     }
 
     private static CycleTask LoadIND16(Reg destHi, Reg destLo) {
         return LoadIMM(Reg.T0).and(TempFrom(Reg.X))
-                .then(AddTempLo())
-                .then(AddTempHi())
+                .then(AddTempAddrLo())
+                .then(AddTempAddrHi())
                 .then(LoadFromTempAddrInc(destHi))
                 .then(LoadFromTempAddr(destLo));
     }
 
     private static CycleTask StoreIND(Reg src) {
         return LoadIMM(Reg.T0).and(TempFrom(Reg.X))
-                .then(AddTempLo())
-                .then(AddTempHi())
+                .then(AddTempAddrLo())
+                .then(AddTempAddrHi())
                 .then(StoreAtTempAddr(src));
     }
 
     private static CycleTask StoreIND16(Reg srcHi, Reg srcLo) {
         return LoadIMM(Reg.T0).and(TempFrom(Reg.X))
-                .then(AddTempLo())
-                .then(AddTempHi())
+                .then(AddTempAddrLo())
+                .then(AddTempAddrHi())
                 .then(StoreAtTempAddrInc(srcHi))
                 .then(StoreAtTempAddr(srcLo));
     }
@@ -850,8 +850,8 @@ public class M6800Microcode {
 
     private static CycleTask Branch(BranchPredicate predicate) {
         return LoadIMM(Reg.T0).and(TempFrom(Reg.PC))
-                .then(AddTempLo())
-                .then(AddTempHi()).and(new CycleTask() {
+                .then(AddTempAddrLo())
+                .then(AddTempAddrHi()).and(new CycleTask() {
                     @Override
                     protected void handlePhi1(M6800 cpu) {
                         if (predicate.shouldBranch(cpu.opCodes)) {
@@ -864,8 +864,8 @@ public class M6800Microcode {
     private static CycleTask Bsr() {
         return LoadIMM(Reg.T0)
                 .then(TempFrom(Reg.PC))
-                .then(AddTempLo())
-                .then(AddTempHi())
+                .then(AddTempAddrLo())
+                .then(AddTempAddrHi())
                 .then(PushOnStack(Reg.PCLo))
                 .then(PushOnStack(Reg.PCHi))
                 .then(TempTo(Reg.PC));
@@ -889,7 +889,7 @@ public class M6800Microcode {
         return BusFrom(reg).and(new CycleTask() {
             @Override
             protected void handlePhi1(M6800 cpu) {
-                cpu.busAddress = cpu.SP;
+                cpu.addressLines = cpu.SP;
                 cpu.SP--;
                 cpu.isRead = false;
             }

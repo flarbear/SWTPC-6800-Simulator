@@ -4,6 +4,8 @@
 
 package org.flarbear.swtpc6800.hwemu;
 
+import org.flarbear.swtpc6800.hwemu.SignalState.Divider;
+
 /**
  * The MC14411 baud rate generator divides the output of what is assumed to
  * be a 1.8432 MHz crystal signal, supplied externally, down by the necessary
@@ -35,19 +37,19 @@ package org.flarbear.swtpc6800.hwemu;
  * @author Flar
  */
 public class MC14411BaudGenerator {
-    public MC14411BaudGenerator(ClockSignal.Source crystal, boolean rateSelectA, boolean rateSelectB) {
-        this.externalCrystal = crystal;
+    public MC14411BaudGenerator(boolean rateSelectA, boolean rateSelectB) {
         if (rateSelectB) {
             multiplier = rateSelectA ? 64 : 16;
         } else {
             multiplier = rateSelectA ? 8 : 1;
         }
+        lines = new Divider[17];
+        activeLines = new SignalState.TriggerImpl();
     }
 
-    private final ClockSignal.Source externalCrystal;
     private final int multiplier;
-
-    private final ClockSignal.Divider lines[] = new ClockSignal.Divider[17];
+    private final SignalState.Transfer lines[];
+    private final SignalState.TriggerImpl activeLines;
 
     static int divisors[] = {
         0,    // F0 doesn't exist
@@ -69,18 +71,27 @@ public class MC14411BaudGenerator {
         1,    // F16, 1,843,200 /   1      = 1.8432 MHz (ignores rateSelect)
     };
 
-    public void addListener(ClockSignal.Listener listener, int Fline) {
+    public void pumpClock(SignalState.Transition transition) {
+        activeLines.notifyListeners(transition);
+    }
+
+    public void addListener(SignalState.Listener listener, int Fline) {
         if (Fline < 1 || Fline > 16) {
             throw new IllegalArgumentException("Baud rate generator output lines are from 1-16");
         }
-        ClockSignal.Divider line = lines[Fline];
+        SignalState.Transfer line = lines[Fline];
         if (line == null) {
-            int divisor = divisors[Fline];
-            if (divisor > 2) {
-                divisor *= 64 / multiplier;
+            switch (Fline) {
+                case 16 -> line = new SignalState.TransferImpl();
+                case 15 -> line = new Divider(2);
+                default -> {
+                        int divisor = divisors[Fline];
+                        divisor *= 64 / multiplier;
+                        line = new Divider(divisor);
+                }
             }
-            lines[Fline] = line = new ClockSignal.Divider(divisor);
-            externalCrystal.addListener(line);
+            activeLines.addListener(line);
+            lines[Fline] = line;
         }
         line.addListener(listener);
     }

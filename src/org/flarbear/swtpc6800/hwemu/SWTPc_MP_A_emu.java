@@ -4,107 +4,126 @@
 
 package org.flarbear.swtpc6800.hwemu;
 
-import org.flarbear.swtpc6800.hwemu.ClockSignal.Divider;
-import org.flarbear.swtpc6800.hwemu.ClockSignal.DualPhase;
+import org.flarbear.swtpc6800.hwemu.SignalState.Divider;
+import org.flarbear.swtpc6800.hwemu.SignalState.DualPhase;
 
 /**
  *
  * @author Flar
  */
 public class SWTPc_MP_A_emu extends SS50Card {
-    SWTPc_MP_A_emu() {
+    public SWTPc_MP_A_emu() {
         this.cpu = new M6800();
-
-        this.xtal = new ClockSignal.Crystal();
-        this.phi1 = new ClockSignal.TransferImpl();
-        this.phi2 = new ClockSignal.TransferImpl();
-
-        this.baud110 = new ClockSignal.TransferImpl();
-        this.baud150 = new ClockSignal.TransferImpl();
-        this.baud300 = new ClockSignal.TransferImpl();
-        this.baud600 = new ClockSignal.TransferImpl();
-        this.baud1200 = new ClockSignal.TransferImpl();
 
         // The xtal signal will be produced by the MP-A at approximately
         // 1.7971 MHz which drives everything else in the system.
-        this.baudGenerator = new MC14411BaudGenerator(xtal, false, true);
+        this.baudGenerator = new MC14411BaudGenerator(false, true);
+        baudGenerator.addListener((t) -> baudLines ^= SS50Bus.Line.Baud110.bit, 13);
+        baudGenerator.addListener((t) -> baudLines ^= SS50Bus.Line.Baud150.bit, 11);
+        baudGenerator.addListener((t) -> baudLines ^= SS50Bus.Line.Baud300.bit,  9);
+        baudGenerator.addListener((t) -> baudLines ^= SS50Bus.Line.Baud600.bit,  8);
+        baudGenerator.addListener((t) -> baudLines ^= SS50Bus.Line.Baud1200.bit, 7);
+
         // The MP-A feeds the full clock line of the baud generator
         // into a divide-by-2 circuit and then feeds that into a pair
         // of non-overlapping dual phase generators to create the
         // inverted non-overlapping clocks phi1 and phi2.
         Divider IC20 = new Divider(2);
-        IC20.addListener(new DualPhase(phi1, phi2));
+        IC20.addListener(new DualPhase(this::phi1Phase, this::phi2Phase));
         baudGenerator.addListener(IC20, 16);
-        baudGenerator.addListener(baud110, 13);
-        baudGenerator.addListener(baud150, 11);
-        baudGenerator.addListener(baud300,  9);
-        baudGenerator.addListener(baud600,  8);
-        baudGenerator.addListener(baud1200, 7);
-
-        addListeners();
     }
 
-    // xtal is the clock signal that should be driven to run the emulation.
-    private final ClockSignal.Crystal xtal;
-
-    // phi1 and phi2 are generated from the xtal signal.
-    private final ClockSignal.Transfer phi1;
-    private final ClockSignal.Transfer phi2;
-
-    private final ClockSignal.Transfer baud110;
-    private final ClockSignal.Transfer baud150;
-    private final ClockSignal.Transfer baud300;
-    private final ClockSignal.Transfer baud600;
-    private final ClockSignal.Transfer baud1200;
+    private static final long BAUD_MASK = SS50Bus.Mask(SS50Bus.Line.Baud110,
+                                                       SS50Bus.Line.Baud150,
+                                                       SS50Bus.Line.Baud300,
+                                                       SS50Bus.Line.Baud600,
+                                                       SS50Bus.Line.Baud1200);
+    private static final long CLEAN_MASK = ~(SS50Bus.Mask(SS50Bus.Line.Phi1,
+                                                          SS50Bus.Line.Phi2) |
+                                             BAUD_MASK);
 
     private final M6800 cpu;
     private final MC14411BaudGenerator baudGenerator;
+    private long baudLines;
 
-    private SS50BusState busState;
+    private SS50Bus busState;
+
+    private final boolean verbose = true;
+
+    public void powerOn() {
+        Thread t = new Thread(this::runClock);
+        t.setDaemon(true);
+        t.setPriority(Thread.MIN_PRIORITY);
+        t.start();
+    }
 
     @Override
-    public void connect(SWTPc_MP_B_emu MP_B) {
-        phi1.addListener(MP_B::phi1Listener);
-        phi2.addListener(MP_B::phi2Listener);
-        baud110.addListener(MP_B.baud110Line());
-        baud150.addListener(MP_B.baud150Line());
-        baud300.addListener(MP_B.baud300Line());
-        baud600.addListener(MP_B.baud600Line());
-        baud1200.addListener(MP_B.baud1200Line());
-        busState = MP_B.getSS50State();
+    public void connect(SS50Bus busState) {
+        this.busState = busState;
+        // For now the cpu.phi1,2 methods are called directly from the MP-A dualPhase method
+        // It would be nice to rework the logic so that things happen more naturally on the
+        // dual phase clock pulses.
+//        busState.onPhi1Rising(() -> cpu.phi1Leading());
+//        busState.onPhi2Rising(() -> cpu.phi2Leading());
+//        busState.onPhi2Falling(() -> cpu.phi2Trailing());
     }
 
-    private void addListeners() {
-        phi1.addListener(this::phi1Driver);
-        phi2.addListener(this::phi2Driver);
+    @SuppressWarnings("CallToThreadYield")
+    private void runClock() {
+        long start = System.nanoTime();
+        long cycles = 0;
+        SignalState.Transition phase = SignalState.Transition.FALLING;
+        do {
+            phase = phase.not();
+            baudGenerator.pumpClock(phase);
+            if (phase == SignalState.Transition.RISING && (++cycles & 0xFFFFF) == 0) {
+                if (verbose) {
+                    double elapsed = (System.nanoTime() - start) / 1000.0 / 1000.0 / 1000.0;
+                    double MHz = cycles / elapsed;
+                    System.out.printf("%d cycles in %f seconds == %f MHz\n", cycles, elapsed, MHz);
+                }
+                Thread.yield();
+            }
+        } while(true);
     }
 
-    private void phi1Driver(boolean isRising) {
-        if (isRising) {
-            busState.setAddressLines(null);
-            cpu.phi1StateChanged(true);
-            busState.setControlLines(cpu.isRead ? SS50BusState.SS_CTRL_READ_LINE : 0);
+    private long cleanedBusLines() {
+        return (busState.currentLines() & CLEAN_MASK) | baudLines;
+    }
+
+    private void phi1Phase(SignalState.Transition transition) {
+        if (transition == SignalState.Transition.RISING) {
+            // Dual-phase Phi1 leading edge, the CPU has not produced any signals for the bus yet
+            // and typically has open transceiver ports.
+            // But the baud rate generator has computed new baud lines.
+            cpu.phi1Leading();
+            busState.pushLines(baudLines | SS50Bus.Line.Phi1.bit);
         } else {
-            busState.setAddressLines(cpu.getAddressLines());
-            cpu.phi1StateChanged(false);
+            busState.pushLines(baudLines);
         }
     }
 
-    private void phi2Driver(boolean isRising) {
-        if (isRising) {
-            busState.setDataLines(cpu.getDataLines());
-            cpu.phi2StateChanged(true);
+    private void phi2Phase(SignalState.Transition transition) {
+        long busLines = cleanedBusLines();
+        if (transition == SignalState.Transition.RISING) {
+            // Dual-phase Phi2 leading edge, we transfer the CPU data to the bus and raise the Phi2 line.
+            cpu.phi2Leading();
+            if (cpu.getAddressLines() != null) {
+                busLines |= SS50Bus.AddressMask(cpu.getAddressLines());
+                busLines |= SS50Bus.Line.VMA.bit;
+            }
+            if (cpu.isRead()) {
+                busLines |= SS50Bus.Line.R_W.bit;
+            } else if (cpu.getDataLines() != null) {
+                busLines |= SS50Bus.DataMask(cpu.getDataLines());
+            }
+            busState.pushLines(busLines | SS50Bus.Line.Phi2.bit);
         } else {
-            cpu.setDataLines(busState.getDataLines());
-            cpu.phi2StateChanged(false);
+            // Dual-phase Phi2 trailing edge, we grab the state (data lines) from the bus and transfer it to the CPU.
+            busLines = busState.currentLines() & ~SS50Bus.Mask(SS50Bus.Line.Phi1, SS50Bus.Line.Phi2);
+            cpu.setDataLines(SS50Bus.getDataLines(busLines));
+            cpu.phi2Trailing();
+            busState.pushLines(busLines);
         }
     }
-
-    public ClockSignal.Source phi1() { return phi1; }
-    public ClockSignal.Source phi2() { return phi2; }
-    public ClockSignal.Source baud110() { return baud110; }
-    public ClockSignal.Source baud150() { return baud150; }
-    public ClockSignal.Source baud300() { return baud300; }
-    public ClockSignal.Source baud600() { return baud600; }
-    public ClockSignal.Source baud1200() { return baud1200; }
 }

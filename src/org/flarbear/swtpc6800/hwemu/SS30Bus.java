@@ -4,6 +4,8 @@
 
 package org.flarbear.swtpc6800.hwemu;
 
+import org.flarbear.swtpc6800.hwemu.SignalState.Transition;
+
 /**
  * This class holds the state of an SS-30 bus.
  * 
@@ -138,11 +140,26 @@ public class SS30Bus {
         return mask;
     }
 
-    private static class SharedLines {
+    private static final int ALL_LINES_MASK = Mask(Line.values());
+
+    public static boolean ValidMask(int mask) {
+        return (mask == (mask & ALL_LINES_MASK));
+    }
+
+    private static class SharedLines extends BusState.SourceImpl {
+        SharedLines(boolean DC_1_mod) {
+            this.DC_1_mod = DC_1_mod;
+        }
+
+        private final boolean DC_1_mod;
+
         private int _prevLines;
         private int _curLines;
         private int _prevSelectedSlot;
         private int _curSelectedSlot;
+
+        // A poor man's tri-state transciever
+        private boolean dataWritten;
 
         void pushLines(int newLines, int selected) {
             assert((newLines & Line.BoardSelect.bit) == 0);
@@ -150,6 +167,14 @@ public class SS30Bus {
             _curLines = newLines & ~Line.BoardSelect.bit;
             _prevSelectedSlot = _curSelectedSlot;
             _curSelectedSlot = selected;
+
+            if (DC_1_mod && selected == 5) {
+                _curLines |= Line.UD0.bit;
+            }
+
+            if (listenerHead != null) {
+                notifyListeners();
+            }
         }
 
         int curLines(int slot) {
@@ -176,14 +201,14 @@ public class SS30Bus {
         }
 
         void setData(byte data) {
+            dataWritten = true;
             _curLines = (_curLines & ~DATA_MASK)
                         | ((data & 0xFF) << Line.D0.index);
         }
     }
 
-    public SS30Bus() {
-        this.shared = new SharedLines();
-        this.slot = -2;
+    public SS30Bus(boolean DC_1_mod) {
+        this(new SharedLines(DC_1_mod), -1);
     }
 
     public SS30Bus getSlotView(int slot) {
@@ -200,7 +225,117 @@ public class SS30Bus {
 
     SharedLines shared;
     int slot;
-    boolean DC_1_mod;
+    private SignalState.LineState lineSources[] = new SignalState.LineState[Line.values().length + 1];
+
+    private SignalState.LineState lineState(Line line) {
+        SignalState.LineState source = lineSources[line.index];
+        if (source == null) {
+            lineSources[line.index] = source =
+                    () -> SignalState.Level((shared.curLines(slot) & line.bit) != 0);
+        }
+        return source;
+    }
+
+    private static class BusTrigger extends SignalState.TriggerImpl implements BusState.Listener {
+        BusTrigger(SignalState.LineState triggerLine) {
+            this.triggerLine = triggerLine;
+        }
+
+        private final SignalState.LineState triggerLine;
+        private SignalState.Level prevState;
+
+        private SignalState.Rising rising;
+        private SignalState.Falling falling;
+
+        SignalState.Trigger getRising() {
+            if (rising == null) {
+                rising = new SignalState.Rising();
+                addListener(rising);
+            }
+            return rising;
+        }
+
+        SignalState.Trigger getFalling() {
+            if (falling == null) {
+                falling = new SignalState.Falling();
+                addListener(falling);
+            }
+            return falling;
+        }
+
+        @Override
+        public void busStateChanged() {
+            SignalState.Level curState = triggerLine.getState();
+            if (curState != prevState) {
+                notifyListeners(curState.isHigh() ? Transition.RISING : Transition.FALLING);
+                prevState = curState;
+            }
+        }
+    }
+
+    BusTrigger phi2Trigger;
+    BusTrigger baud110Trigger;
+    BusTrigger baud150Trigger;
+    BusTrigger baud300Trigger;
+    BusTrigger baud600Trigger;
+    BusTrigger baud1200Trigger;
+
+    private BusTrigger makeTrigger(BusTrigger cached, Line line) {
+        if (cached == null) {
+            cached = new BusTrigger(lineState(line));
+            shared.addListener(cached);
+        }
+        return cached;
+    }
+
+    private BusTrigger getPhi2Trigger() { return phi2Trigger = makeTrigger(phi2Trigger, Line.Phi2); }
+    private BusTrigger getBaud110Trigger() { return baud110Trigger = makeTrigger(baud110Trigger, Line.Baud110); }
+    private BusTrigger getBaud150Trigger() { return baud110Trigger = makeTrigger(baud150Trigger, Line.Baud150); }
+    private BusTrigger getBaud300Trigger() { return baud110Trigger = makeTrigger(baud300Trigger, Line.Baud300); }
+    private BusTrigger getBaud600Trigger() { return baud110Trigger = makeTrigger(baud600Trigger, Line.Baud600); }
+    private BusTrigger getBaud1200Trigger() { return baud110Trigger = makeTrigger(baud1200Trigger, Line.Baud1200); }
+
+    public SignalState.LineState D0() { return lineState(Line.D0); }
+    public SignalState.LineState D1() { return lineState(Line.D1); }
+    public SignalState.LineState D2() { return lineState(Line.D2); }
+    public SignalState.LineState D3() { return lineState(Line.D3); }
+    public SignalState.LineState D4() { return lineState(Line.D4); }
+    public SignalState.LineState D5() { return lineState(Line.D5); }
+    public SignalState.LineState D6() { return lineState(Line.D6); }
+    public SignalState.LineState D7() { return lineState(Line.D7); }
+
+    public SignalState.LineState RS0() { return lineState(Line.RS0); }
+    public SignalState.LineState RS1() { return lineState(Line.RS1); }
+    public SignalState.LineState UD0() { return lineState(Line.UD0); }
+    public SignalState.LineState UD1() { return lineState(Line.UD1); }
+
+    public SignalState.LineState NMI() { return lineState(Line.NMI); }
+    public SignalState.LineState IRQ() { return lineState(Line.IRQ); }
+    public SignalState.LineState R_W() { return lineState(Line.R_W); }
+    public SignalState.LineState BS() { return lineState(Line.BoardSelect); }
+    public SignalState.LineState RESET() { return lineState(Line.RESET); }
+
+    public SignalState.LineState Phi2() { return lineState(Line.Phi2); }
+
+    public SignalState.Trigger Phi2Trigger() { return getPhi2Trigger(); }
+    public SignalState.Trigger Phi2Rising() { return getPhi2Trigger().getRising(); }
+    public SignalState.Trigger Phi2Falling() { return getPhi2Trigger().getFalling(); }
+
+    public SignalState.Trigger Baud110Trigger() { return getBaud110Trigger(); }
+    public SignalState.Trigger Baud110Rising() { return getBaud110Trigger().getRising(); }
+    public SignalState.Trigger Baud110Falling() { return getBaud110Trigger().getFalling(); }
+    public SignalState.Trigger Baud150Trigger() { return getBaud150Trigger(); }
+    public SignalState.Trigger Baud150Rising() { return getBaud150Trigger().getRising(); }
+    public SignalState.Trigger Baud150Falling() { return getBaud150Trigger().getFalling(); }
+    public SignalState.Trigger Baud300Trigger() { return getBaud300Trigger(); }
+    public SignalState.Trigger Baud300Rising() { return getBaud300Trigger().getRising(); }
+    public SignalState.Trigger Baud300Falling() { return getBaud300Trigger().getFalling(); }
+    public SignalState.Trigger Baud600Trigger() { return getBaud600Trigger(); }
+    public SignalState.Trigger Baud600Rising() { return getBaud600Trigger().getRising(); }
+    public SignalState.Trigger Baud600Falling() { return getBaud600Trigger().getFalling(); }
+    public SignalState.Trigger Baud1200Trigger() { return getBaud1200Trigger(); }
+    public SignalState.Trigger Baud1200Rising() { return getBaud1200Trigger().getRising(); }
+    public SignalState.Trigger Baud1200Falling() { return getBaud1200Trigger().getFalling(); }
 
     private static class LineMapping {
         LineMapping(SS50Bus.Line line, int bit) {
@@ -244,10 +379,11 @@ public class SS30Bus {
         if (master.isHigh(SS50Bus.Line.A4)) {
             selected |= 4;
         }
-        if (DC_1_mod && selected == 5) {
-            lines |= Line.UD0.bit;
-        }
+        shared.dataWritten = false;
         shared.pushLines(lines, selected);
+        if (shared.dataWritten) {
+            master.setData(shared.getData());
+        }
     }
 
     public byte getData() {

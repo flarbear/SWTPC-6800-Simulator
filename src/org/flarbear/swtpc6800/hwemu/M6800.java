@@ -18,8 +18,8 @@ public class M6800 {
     public static final int CC_BIT_I = 0x10;
     public static final int CC_BIT_H = 0x20;
 
-    Character busAddress;
-    Byte busData;
+    Character addressLines;
+    Byte dataLines;
 
     char PC;
     char SP;
@@ -39,35 +39,30 @@ public class M6800 {
     M6800Microcode.CycleTask nextCode;
     M6800Microcode.CycleTask curCode;
 
-    public boolean isRead() { return isRead; }
-
-    public void phi1StateChanged(boolean isRising) {
-        if (isRising) {
-            M6800Microcode.CycleTask code = nextCode;
-            if (code == null) {
-                if (!checkRunning()) {
-                    curCode = nextCode = null;
-                    return;
-                }
-                code = LOAD_INSTRUCTION;
+    public void phi1Leading() {
+        M6800Microcode.CycleTask code = nextCode;
+        if (code == null) {
+            if (!checkRunning()) {
+                curCode = nextCode = null;
+                return;
             }
-            nextCode = code.next();
-            curCode = code;
-            busAddress = null;
-            code.processPhi1Tasks(this);
+            code = LOAD_INSTRUCTION;
         }
+        nextCode = code.next();
+        curCode = code;
+        addressLines = null;
+        code.processPhi1Tasks(this);
     }
 
-    public void phi2StateChanged(boolean isRising) {
-        if (isRising) {
-            busData = null;
-            if (curCode != null) {
-                curCode.processPhi2LeadingTasks(this);
-            }
-        } else {
-            if (curCode != null) {
-                curCode.processPhi2TrailingTasks(this);
-            }
+    public void phi2Leading() {
+        dataLines = null;
+        if (curCode != null) {
+            curCode.processPhi2LeadingTasks(this);
+        }
+    }
+    public void phi2Trailing() {
+        if (curCode != null) {
+            curCode.processPhi2TrailingTasks(this);
         }
     }
 
@@ -75,16 +70,18 @@ public class M6800 {
         return true;
     }
 
+    public boolean isRead() { return isRead; }
+
     public Character getAddressLines() {
-        return busAddress;
+        return addressLines;
     }
 
     public Byte getDataLines() {
-        return busData;
+        return dataLines;
     }
 
     public void setDataLines(Byte data) {
-        busData = data;
+        dataLines = data;
     }
 
     @FunctionalInterface
