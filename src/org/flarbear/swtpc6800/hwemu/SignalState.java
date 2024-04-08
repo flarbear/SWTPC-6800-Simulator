@@ -35,10 +35,11 @@ public interface SignalState {
         }
 
         public Level not() {
-            if (this == FLOATING) {
-                return FLOATING;
-            }
-            return isHigh() ? LOW : HIGH;
+            return switch (this) {
+                case LOW ->      HIGH;
+                case HIGH ->     LOW;
+                case FLOATING -> FLOATING;
+            };
         }
 
         public Level and(Level other) {
